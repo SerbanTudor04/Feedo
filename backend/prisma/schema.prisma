@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model room_feedback {
+  id                 Int       @id(map: "room_feedback_pk")
+  session_id         Int?
+  room_id            Int?
+  feedback_on        DateTime? @db.Timestamptz(6)
+  moment_of_feedback Int?
+  created_at         DateTime? @db.Date
+  rooms              rooms?    @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_feedback_rooms_id_fk")
+  sessions           sessions? @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_feedback_sessions_id_fk")
+}
+
+model room_members {
+  id         Int       @id(map: "room_members_pk") @default(autoincrement())
+  session_id Int?
+  room_id    Int?
+  join_at    DateTime? @db.Date
+  leaved_at  DateTime? @db.Date
+  rooms      rooms?    @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_members_rooms_id_fk")
+  sessions   sessions? @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_members_sessions_id_fk")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rooms {
+  id              Int             @id(map: "rooms_pk") @default(autoincrement())
+  code            String?         @db.VarChar(8)
+  no_participants Int?
+  start_time      DateTime?       @db.Timestamptz(6)
+  end_time        DateTime?       @db.Timestamptz(6)
+  duration        Int?
+  teacher_id      Int?
+  room_feedback   room_feedback[]
+  room_members    room_members[]
+
+  @@index([teacher_id], map: "rooms_teacher_id_index")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sessions {
+  id            Int             @id(map: "sessions_pk") @default(autoincrement())
+  nickname      String?         @db.VarChar(256)
+  kind          String?         @db.VarChar(1)
+  created_at    DateTime?       @db.Timestamptz(6)
+  updated_at    DateTime?       @db.Timestamptz(6)
+  last_seen     DateTime?       @db.Timestamptz(6)
+  ip_addr       Int?
+  room_feedback room_feedback[]
+  room_members  room_members[]
+}

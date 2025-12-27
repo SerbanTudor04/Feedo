@@ -1,0 +1,15 @@
+services:
+  pgfeedo:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: feedo_account
+      POSTGRES_PASSWORD: feedo_account_124
+      POSTGRES_DB: feedo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql  # <--- CHANGED THIS LINE
+
+volumes:
+  pg_data:

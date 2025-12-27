@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend feedo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index.js",
+    "db-pull": "prisma db pull"
+  },
+  "author": "Tudor si Razvan",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^7.2.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.3",
+    "nodemon": "^3.1.11",
+    "prisma": "^7.2.0"
+  }
+}
