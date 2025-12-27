@@ -38,6 +38,7 @@ model rooms {
   end_time        DateTime?       @db.Timestamptz(6)
   duration        Int?
   teacher_id      Int?
+  is_active       Boolean?        @default(false)
   room_feedback   room_feedback[]
   room_members    room_members[]
 
