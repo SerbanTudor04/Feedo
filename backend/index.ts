@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import api_router from './src/router.js';
-import { initializeSockets } from './src/socket_io.js';
+import { initializeSockets } from './src/sockets/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +25,6 @@ app.use('/api', api_router);
 
 
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
