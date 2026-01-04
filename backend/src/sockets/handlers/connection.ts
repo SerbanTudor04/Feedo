@@ -19,7 +19,9 @@ export const handleConnection = async (io: Server, socket: AuthenticatedSocket) 
 
         socket.emit('room_state', {
             startTime: room?.start_time,
-            participantCount: participantCount
+            participantCount: participantCount,
+            name: room?.name,
+            description:room?.description
         });
 
         if (user.role === 'teacher') {

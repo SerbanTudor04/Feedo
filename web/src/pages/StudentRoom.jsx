@@ -188,7 +188,9 @@ export default function StudentRoom() {
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ width: 28, height: 28, color: THEME_COLOR }}>
-                <svg fill="currentColor" viewBox="0 0 48 48"><path d="M42.1739 20.1739L27.8261 5.82609C29.1366 7.13663 28.3989 10.1876 26.2002 13.7654C24.8538 15.9564 22.9595 18.3449 20.6522 20.6522C18.3449 22.9595 15.9564 24.8538 13.7654 26.2002C10.1876 28.3989 7.13663 29.1366 5.82609 27.8261L20.1739 42.1739C21.4845 43.4845 24.5355 42.7467 28.1133 40.548C30.3042 39.2016 32.6927 37.3073 35 35C37.3073 32.6927 39.2016 30.3042 40.548 28.1133C42.7467 24.5355 43.4845 21.4845 42.1739 20.1739Z" /></svg>
+               <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.221 69.78 69.78 0 00-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+             </svg>
             </Box>
             
             {/* Info Activitate - Mobile (Doar Titlu) */}
@@ -298,21 +300,6 @@ export default function StudentRoom() {
             ))}
         </Grid>
       </Container>
-
-      {/* Footer "Ask a Question" (Optional, ca in design) */}
-      <Box sx={{ p: 3, textAlign: 'right' }}>
-         <Button 
-            variant="contained" 
-            startIcon={<ChatBubbleOutlineIcon />}
-            sx={{ 
-                bgcolor: '#137fec', borderRadius: '30px', px: 3, py: 1.5, 
-                fontWeight: 700, textTransform: 'none',
-                boxShadow: '0 4px 10px rgba(19, 127, 236, 0.3)'
-            }}
-         >
-            Ask a Question
-         </Button>
-      </Box>
 
       {/* --- MODAL DESCRIERE --- */}
       <Dialog open={openDescModal} onClose={() => setOpenDescModal(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
