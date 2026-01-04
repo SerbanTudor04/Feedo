@@ -1,5 +1,10 @@
 // specific url for your backend
-const API_URL = process.env.API_URL || 'http://localhost:3000/api';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// Automatically picks the right URL
+const API_URL = isLocal 
+  ? 'http://localhost:3000/api' 
+  : 'https://feedo.igbs.blog/api';
 
 
 
@@ -34,4 +39,4 @@ export const getReport = async (roomCode, token) => {
     }
   });
   return res.json();
-};
+}; 
