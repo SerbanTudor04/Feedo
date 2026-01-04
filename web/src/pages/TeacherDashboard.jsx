@@ -1,22 +1,22 @@
-import { useEffect, useState, useRef } from 'react';
-import { useLocation } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useLocation,useNavigate } from 'react-router';
 import { 
   Paper, Typography, Box, List, ListItem, ListItemText, 
-  ListItemAvatar, Avatar, Chip, Grid, Divider 
+  ListItemAvatar, Avatar, Grid, Divider,Button
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import CircleIcon from '@mui/icons-material/Circle';
+import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import ReactionStream from '../components/ReactionStream';
 
 export default function TeacherDashboard() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { token, room_code } = location.state || {}; 
   
   const [participants, setParticipants] = useState([]);
   const [stats, setStats] = useState({ count: 0 });
-  
-  // Store socket in a ref or state so we can pass it to children
   const [socketInstance, setSocketInstance] = useState(null);
 
   useEffect(() => {
@@ -25,42 +25,26 @@ export default function TeacherDashboard() {
     const socket = connectSocket(token);
     setSocketInstance(socket);
 
-    // 1. Initial Data
     socket.on('teacher_dashboard_data', (data) => {
-      // data.participants comes from your connection.ts
       setParticipants(data.participants.map(p => ({ ...p, status: 'active' })));
       setStats(prev => ({ ...prev, count: data.participants.length }));
     });
 
-    // 2. Participant Joined (Fixing the Duplicate Issue)
     socket.on('participant_joined', (data) => {
-      // data: { nickname, count }
       setParticipants(prev => {
-        // Check if this person is already in the list (e.g., they refreshed)
         const exists = prev.find(p => p.nickname === data.nickname);
-
         if (exists) {
-            // Update existing row to "active"
-            return prev.map(p => 
-                p.nickname === data.nickname 
-                ? { ...p, status: 'active' } 
-                : p
-            );
+            return prev.map(p => p.nickname === data.nickname ? { ...p, status: 'active' } : p);
         } else {
-            // Add new row
             return [...prev, { nickname: data.nickname, status: 'active', joinAt: new Date() }];
         }
       });
       setStats(prev => ({ ...prev, count: data.count }));
     });
 
-    // 3. Participant Left
     socket.on('participant_left', (data) => {
-      // data: { nickname, sessionId, count }
       setParticipants(prev => prev.map(p => 
-        p.nickname === data.nickname // Use nickname or sessionId to match
-          ? { ...p, status: 'left' } 
-          : p
+        p.nickname === data.nickname ? { ...p, status: 'left' } : p
       ));
       setStats(prev => ({ ...prev, count: data.count }));
     });
@@ -71,47 +55,129 @@ export default function TeacherDashboard() {
     };
   }, [token]);
 
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* PASS THE SOCKET INSTANCE DOWN */}
-      {socketInstance && <ReactionStream socket={socketInstance} />}
+  const handleStopActivity = () => {
+    if (!socketInstance) return;
 
-      <Paper elevation={3} sx={{ p: 3, mb: 3, textAlign: 'center', background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', color: 'white' }}>
-        <Typography variant="h4" fontWeight="bold">Room Code: {room_code}</Typography>
-        <Typography variant="subtitle1">Live Participants: {stats.count}</Typography>
+    if (window.confirm("Are you sure you want to stop this activity? All students will be disconnected.")) {
+        // 1. Notify Backend
+        socketInstance.emit('stop_activity', { 
+            activityType: 'lecture', 
+            details: 'Teacher ended session' 
+        });
+
+        // 2. Redirect to Report Page immediately
+        navigate('/report', { 
+            state: { 
+                roomCode: room_code,
+                totalParticipants: participants.length
+            } 
+        });
+    }
+  };
+
+  return (
+    <Box sx={{ maxWidth: '1200px', mx: 'auto', p: 2 }}>
+      
+      {/* 1. Header Card (Blue Gradient) */}
+      {/* Header Card Updated with Stop Button */}
+      <Paper 
+        elevation={6} 
+        sx={{ 
+          p: 3, mb: 4, 
+          background: 'linear-gradient(90deg, #2196F3 0%, #00B0FF 100%)', 
+          color: 'white', borderRadius: 3,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}
+      >
+        <Box>
+            <Typography variant="h4" fontWeight="bold">Room: {room_code}</Typography>
+            <Typography variant="h6" sx={{ opacity: 0.9 }}>Live Participants: {stats.count}</Typography>
+        </Box>
+        
+        <Button 
+            variant="contained" 
+            color="error" 
+            size="large"
+            startIcon={<StopCircleIcon />}
+            onClick={handleStopActivity}
+            sx={{ 
+                bgcolor: 'white', color: '#d32f2f', fontWeight: 'bold',
+                '&:hover': { bgcolor: '#ffebee' } 
+            }}
+        >
+            Stop Activity
+        </Button>
       </Paper>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 2, height: '60vh', overflowY: 'auto' }}>
-            <Typography variant="h6" gutterBottom>Class Roster</Typography>
-            <Divider />
-            <List>
+      {/* 2. Main Content Grid */}
+      <Grid container spacing={3} sx={{ height: '70vh' }}>
+        
+        {/* Left Column: Class Roster */}
+        <Grid item xs={12} md={4} sx={{ height: '100%' }}>
+          <Paper elevation={3} sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: 3 }}>
+            <Box sx={{ p: 2, borderBottom: '1px solid #eee' }}>
+               <Typography variant="h6" align="center">Class Roster</Typography>
+            </Box>
+            
+            <List sx={{ overflowY: 'auto', flexGrow: 1, px: 1 }}>
               {participants.map((p, index) => (
-                <ListItem key={index}>
+                <ListItem key={index} sx={{ borderBottom: '1px solid #f5f5f5' }}>
                   <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: p.status === 'active' ? 'green' : 'grey' }}>
+                    <Avatar sx={{ bgcolor: p.status === 'active' ? '#4caf50' : '#bdbdbd' }}>
                       <PersonIcon />
                     </Avatar>
                   </ListItemAvatar>
+                  
                   <ListItemText 
-                    primary={p.nickname} 
+                    primary={<Typography fontWeight="500">{p.nickname}</Typography>} 
                     secondary={p.status === 'active' ? 'Online' : 'Left the room'} 
                   />
-                  {p.status === 'active' && 
-                    <CircleIcon sx={{ fontSize: 12, color: 'lightgreen' }} />
-                  }
+                  
+                  {p.status === 'active' ? (
+                     <CircleIcon sx={{ fontSize: 14, color: '#4caf50' }} />
+                  ) : (
+                     <CircleIcon sx={{ fontSize: 14, color: '#bdbdbd' }} />
+                  )}
                 </ListItem>
               ))}
-              {participants.length === 0 && <Typography sx={{p:2}} color="text.secondary">Waiting for students...</Typography>}
+              {participants.length === 0 && (
+                <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+                   <Typography>No students yet.</Typography>
+                   <Typography variant="caption">Share the code to start.</Typography>
+                </Box>
+              )}
             </List>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-           <Paper elevation={2} sx={{ p: 2, height: '60vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column' }}>
-              <Typography variant="h5" color="text.secondary">Live Feedback Stream</Typography>
-              <Typography variant="body2">Reactions appear on screen automatically</Typography>
+        {/* Right Column: Live Feedback Stream */}
+        <Grid item xs={12} md={8} sx={{ height: '100%' }}>
+           <Paper 
+             elevation={3} 
+             sx={{ 
+               height: '100%', 
+               position: 'relative', // Critical for containing emojis
+               display: 'flex', 
+               alignItems: 'center', 
+               justifyContent: 'center', 
+               flexDirection: 'column',
+               borderRadius: 3,
+               overflow: 'hidden',
+               bgcolor: '#fafafa'
+             }}
+           >
+              {/* The Stream Component is placed INSIDE this relative box */}
+              {socketInstance && <ReactionStream socket={socketInstance} />}
+
+              {/* Placeholder Text */}
+              <Box sx={{ zIndex: 1, textAlign: 'center', opacity: 0.6 }}>
+                <Typography variant="h4" color="text.secondary" gutterBottom>
+                  Live Feedback Stream
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Reactions appear here automatically
+                </Typography>
+              </Box>
            </Paper>
         </Grid>
       </Grid>

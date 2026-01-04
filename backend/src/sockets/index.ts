@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { TokenPayload, AuthenticatedSocket } from './types.js';
 import { handleConnection, handleDisconnect } from './handlers/connection.js';
 import { registerFeedbackHandlers } from './handlers/feedback.js';
+import { registerActivityHandlers } from './handlers/activity.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
 
@@ -42,6 +43,7 @@ export const initializeSockets = (io: Server) => {
 
         // C. Register Event Listeners (Feedback, etc.)
         registerFeedbackHandlers(io, socket);
+        registerActivityHandlers(io, socket);
 
         socket.on('disconnect', async () => {
              // <--- CALL THE NEW HANDLER HERE

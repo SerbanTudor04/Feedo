@@ -93,7 +93,6 @@ api_router.post('/join',async (req:Request, res:Response) => {
   try {
         const { nickname, code } = req.body;
 
-        // 1. Validare simplă a input-ului
         if (!nickname || !code) {
             return res.status(400).json({
                 detail: "Nickname and code are required.",
@@ -101,16 +100,13 @@ api_router.post('/join',async (req:Request, res:Response) => {
             });
         }
 
-        // 2. Căutăm camera în baza de date
-        // Folosim findFirst pentru că în schema ta 'code' nu are constrângere de @unique, 
-        // deși logic ar trebui să fie unic.
         const room = await prisma.rooms.findFirst({
             where: {
                 code: code
             }
         });
 
-        // 3. Verificăm validitatea camerei
+
         const now = new Date();
         const isRoomClosed = room?.end_time && new Date(room.end_time) < now;
 
@@ -120,9 +116,6 @@ api_router.post('/join',async (req:Request, res:Response) => {
                 data: {}
             });
         }
-
-        // 4. Creăm o sesiune pentru student
-        // Presupunem că 'kind' = 'S' vine de la Student
         const newSession = await prisma.sessions.create({
             data: {
                 nickname: nickname,
@@ -134,7 +127,6 @@ api_router.post('/join',async (req:Request, res:Response) => {
             }
         });
 
-        // 5. Adăugăm studentul ca membru în cameră
         await prisma.room_members.create({
             data: {
                 session_id: newSession.id,
@@ -154,8 +146,6 @@ api_router.post('/join',async (req:Request, res:Response) => {
             { expiresIn: '24h' }
         );
 
-        // 6. Trimitem răspunsul cu succes
-        // Frontend-ul are nevoie de session_id pentru a trimite feedback ulterior
         res.status(200).json({
             detail: "Joined successfully.",
             data: {
@@ -173,6 +163,104 @@ api_router.post('/join',async (req:Request, res:Response) => {
     }
 });
 
+const REACTION_KIND_REVERSE: Record<number, string> = {
+    1: 'happy',
+    2: 'confused',
+    3: 'surprised',
+    4: 'sad'
+};
+
+api_router.get('/report/:roomCode', async (req: Request, res: Response) => {
+    try {
+        // --- 1. SECURITY CHECK ---
+        const authHeader = req.headers.authorization || req.headers['token']; 
+        const token = typeof authHeader === 'string' 
+            ? authHeader.replace('Bearer ', '') 
+            : null;
+
+        if (!token) {
+            return res.status(401).json({ detail: "Authentication required" });
+        }
+
+        let user: any;
+        try {
+            user = jwt.verify(token, JWT_SECRET);
+        } catch (e) {
+            return res.status(401).json({ detail: "Invalid or expired token" });
+        }
+
+        if (user.role !== 'teacher') {
+            return res.status(403).json({ detail: "Access denied. Teachers only." });
+        }
+        // -------------------------
+
+        const { roomCode } = req.params;
+
+        const room = await prisma.rooms.findFirst({
+            where: { code: roomCode }
+        });
+
+        if (!room) return res.status(404).json({ detail: "Room not found" });
+
+        // 1. Fetch Feedback
+        const feedbacks = await prisma.room_feedback.findMany({
+            where: { room_id: room.id },
+            orderBy: { moment_of_feedback: 'asc' } // Sort by time offset
+        });
+
+        // 2. Group into Time Buckets (e.g., Minutes)
+        // Chart expects: [{ time: '00:00', happy: 5, confused: 2 }]
+        const chartMap = new Map<string, any>();
+
+        feedbacks.forEach(f => {
+            if (f.moment_of_feedback === null || f.kind === null) return;
+
+            // Convert seconds (moment) to "MM:SS" format for the chart
+            const minutes = Math.floor(f.moment_of_feedback / 60);
+            const seconds = f.moment_of_feedback % 60;
+            const timeLabel = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // To make the chart less crowded, you can group by Minute only:
+            // const timeLabel = `${minutes.toString().padStart(2, '0')}:00`; 
+
+            if (!chartMap.has(timeLabel)) {
+                chartMap.set(timeLabel, { 
+                    time: timeLabel, 
+                    happy: 0, confused: 0, surprised: 0, sad: 0 
+                });
+            }
+
+            const bucket = chartMap.get(timeLabel);
+            const reactionName = REACTION_KIND_REVERSE[f.kind]; // Map 1 -> 'happy'
+            
+            if (reactionName && bucket[reactionName] !== undefined) {
+                bucket[reactionName]++;
+            }
+        });
+
+        const chartData = Array.from(chartMap.values());
+
+        // 3. Stats
+        const totalParticipants = await prisma.room_members.count({
+            where: { room_id: room.id }
+        });
+
+        res.status(200).json({
+            detail: "Success",
+            data: {
+                roomCode: room.code,
+                chartData: chartData,
+                totalParticipants,
+                durationMinutes: room.duration,
+                startTime: room.start_time
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ detail: "Server error", data: {} });
+    }
+});
 
 
 export default api_router;

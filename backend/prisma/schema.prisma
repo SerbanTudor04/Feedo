@@ -15,6 +15,7 @@ model room_feedback {
   feedback_on        DateTime? @db.Timestamptz(6)
   moment_of_feedback Int?
   created_at         DateTime? @db.Date
+  kind               Int?
   rooms              rooms?    @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_feedback_rooms_id_fk")
   sessions           sessions? @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_feedback_sessions_id_fk")
 }
