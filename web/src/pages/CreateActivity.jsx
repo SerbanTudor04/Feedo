@@ -15,6 +15,7 @@ import TitleIcon from '@mui/icons-material/Title';         // Nume activitate
 import DescriptionIcon from '@mui/icons-material/Description'; // Descriere
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Import nou
 import { createRoom } from '../services/api';
 
 export default function CreateActivity() {
@@ -49,8 +50,6 @@ export default function CreateActivity() {
     setError('');
 
     try {
-      // Trimitem toate cele 3 câmpuri către API
-      // Backend-ul va seta default "Untitled Room" dacă activityName e gol
       const result = await createRoom(nickname, activityName, description);
       
       if (result.data?.token) {
@@ -96,7 +95,11 @@ export default function CreateActivity() {
         top: 0,
         zIndex: 50
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        {/* LOGO CLICKABLE */}
+        <Box 
+            onClick={() => navigate('/')} 
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }}
+        >
           <Box sx={{ width: 32, height: 32, color: THEME_COLOR }}>
              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.221 69.78 69.78 0 00-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
@@ -108,7 +111,24 @@ export default function CreateActivity() {
       </Box>
 
       {/* --- MAIN CONTENT --- */}
-      <Container maxWidth="sm" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 6 }}>
+      <Container maxWidth="sm" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6 }}>
+        
+        {/* BUTONUL GO BACK */}
+        <Box sx={{ width: '100%', maxWidth: 520, mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+            <Button 
+                onClick={() => navigate('/')}
+                startIcon={<ArrowBackIcon />}
+                sx={{ 
+                    color: '#64748b', 
+                    textTransform: 'none', 
+                    fontWeight: 600,
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.05)', color: '#0f172a' }
+                }}
+            >
+                Back to Home
+            </Button>
+        </Box>
+
         <Paper 
           elevation={0} 
           sx={{ 
@@ -168,7 +188,6 @@ export default function CreateActivity() {
                     value={activityName}
                     onChange={(e) => setActivityName(e.target.value)}
                     variant="outlined"
-                    // Nu e required, backend-ul pune default
                     inputProps={{ style: { padding: '14px' } }}
                     sx={inputStyles}
                   />

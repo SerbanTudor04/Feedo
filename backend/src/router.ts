@@ -26,7 +26,7 @@ api_router.post('/create', async (req:Request, res:Response) => {
         }
         
         let description = body?.description;
-        if (!description) {
+        if (!description || description.trim() === "") {
             description = "";
         }
 
@@ -90,6 +90,7 @@ api_router.post('/create', async (req:Request, res:Response) => {
         });
 
     }catch(err){
+        console.error("Error creating room:", err);
         res.status(500).json({
             "detail":"Internal server error.",
             "data":{}

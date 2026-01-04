@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import api_router from './src/router.js';
 import { initializeSockets } from './src/sockets/index.js';
+import morgan from 'morgan';
 import cors from 'cors';
 
 const app = express();
@@ -14,6 +15,11 @@ app.use(cors({
     methods: ["GET", "POST"],
     credentials: true
 }));
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+});
+app.use(morgan('dev'));
 
 const httpServer = createServer(app);
 
