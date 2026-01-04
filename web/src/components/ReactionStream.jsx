@@ -1,41 +1,42 @@
 import { useEffect, useState } from 'react';
 import { Box, keyframes } from '@mui/material';
-import { getSocket } from '../services/socket';
 
-// Animation: Float up and fade out
 const floatUp = keyframes`
   0% { transform: translateY(0) scale(1); opacity: 1; }
   100% { transform: translateY(-300px) scale(1.5); opacity: 0; }
 `;
 
-export default function ReactionStream() {
+// NOW ACCEPTS SOCKET AS PROP
+export default function ReactionStream({ socket }) {
   const [reactions, setReactions] = useState([]);
 
   useEffect(() => {
-    const socket = getSocket();
     if (!socket) return;
 
     const handleReaction = (data) => {
-      // Create a unique ID for animation key
+      // data: { sessionId, value } from feedback.ts
       const newReaction = {
         id: Date.now() + Math.random(),
         emoji: getEmoji(data.value),
-        left: Math.random() * 80 + 10 + '%' // Random horizontal position (10% to 90%)
+        left: Math.random() * 80 + 10 + '%' 
       };
 
       setReactions((prev) => [...prev, newReaction]);
 
-      // Remove it from DOM after animation (2 seconds)
       setTimeout(() => {
         setReactions((prev) => prev.filter(r => r.id !== newReaction.id));
       }, 2000);
     };
 
+    // Attach listener to the passed socket instance
     socket.on('receive_feedback', handleReaction);
-    return () => socket.off('receive_feedback', handleReaction);
-  }, []);
 
-  // Helper to map values back to emojis if needed
+    // Cleanup listener on unmount
+    return () => {
+      socket.off('receive_feedback', handleReaction);
+    };
+  }, [socket]);
+
   const getEmoji = (val) => {
     const map = { happy: '😊', confused: '😕', surprised: '😲', sad: '☹️' };
     return map[val] || val; 
