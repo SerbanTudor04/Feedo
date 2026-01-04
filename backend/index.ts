@@ -10,8 +10,9 @@ const PORT = process.env.PORT || 3000;
 // 1. Create the HTTP Server
 
 app.use(cors({
-    origin: "http://localhost:5173", // Allow your Vite frontend
-    methods: ["GET", "POST"]
+    origin : "*",
+    methods: ["GET", "POST"],
+    credentials: true
 }));
 
 const httpServer = createServer(app);

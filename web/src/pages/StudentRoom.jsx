@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Paper, Typography, Box, Button, Fade, Container } from '@mui/material';
+import { Paper, Typography, Box, Button, Fade, Chip } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
+import AccessTimeIcon from '@mui/icons-material/AccessTime'; // Timer Icon
+import GroupIcon from '@mui/icons-material/Group'; // Group Icon
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import ReactionStream from '../components/ReactionStream';
 
@@ -20,15 +22,62 @@ export default function StudentRoom() {
   const { token, nickname } = location.state || {};
   const [socketInstance, setSocketInstance] = useState(null);
   const [isEnded, setIsEnded] = useState(false);
+  
+  // --- NEW STATE ---
+  const [participantCount, setParticipantCount] = useState(1);
+  const [startTime, setStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState("00:00:00");
 
-  // Theme Constant
   const THEME_COLOR = '#137fec';
+
+  // --- TIMER LOGIC ---
+  useEffect(() => {
+    if (!startTime) return;
+    
+    const interval = setInterval(() => {
+        const now = new Date();
+        const start = new Date(startTime);
+        const diff = now - start;
+
+        if (diff < 0) {
+            setElapsedTime("00:00:00");
+            return;
+        }
+
+        const hours = Math.floor(diff / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+
+        const hDisplay = hours > 0 ? hours.toString().padStart(2, '0') + ':' : '';
+        const mDisplay = minutes.toString().padStart(2, '0');
+        const sDisplay = seconds.toString().padStart(2, '0');
+
+        setElapsedTime(`${hDisplay}${mDisplay}:${sDisplay}`);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [startTime]);
 
   useEffect(() => {
     if (!token) return;
 
     const s = connectSocket(token);
     setSocketInstance(s);
+
+    // 1. Initial State (Time & Count)
+    s.on('room_state', (data) => {
+        if(data.startTime) setStartTime(data.startTime);
+        if(data.participantCount) setParticipantCount(data.participantCount);
+    });
+
+    // 2. Real-time Count Updates
+    s.on('participant_joined', (data) => {
+        if(data.count) setParticipantCount(data.count);
+    });
+
+    s.on('participant_left', (data) => {
+        if(data.count) setParticipantCount(data.count);
+    });
 
     s.on('activity_ended', () => {
         setIsEnded(true);
@@ -41,6 +90,9 @@ export default function StudentRoom() {
 
     return () => {
         s.off('activity_ended');
+        s.off('room_state');
+        s.off('participant_joined');
+        s.off('participant_left');
         disconnectSocket();
     };
   }, [token]);
@@ -55,7 +107,6 @@ export default function StudentRoom() {
     navigate('/');
   };
 
-  // --- SCREEN: CLASS ENDED ---
   if (isEnded) {
     return (
         <Box sx={{ 
@@ -78,7 +129,6 @@ export default function StudentRoom() {
     );
   }
 
-  // --- SCREEN: ACTIVE CLASS ---
   return (
     <Box sx={{ 
       height: '100vh', 
@@ -86,7 +136,7 @@ export default function StudentRoom() {
       flexDirection: 'column',
       bgcolor: '#f6f7f8',
       fontFamily: "'Lexend', sans-serif",
-      overflow: 'hidden' // Prevent page scroll, handle inside components
+      overflow: 'hidden'
     }}>
       
       {/* 1. NAVBAR */}
@@ -97,20 +147,35 @@ export default function StudentRoom() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
         zIndex: 50
       }}>
-        {/* Brand */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* Left: Brand + Timer */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ width: 28, height: 28, color: THEME_COLOR }}>
                 <svg fill="currentColor" viewBox="0 0 48 48"><path d="M42.1739 20.1739L27.8261 5.82609C29.1366 7.13663 28.3989 10.1876 26.2002 13.7654C24.8538 15.9564 22.9595 18.3449 20.6522 20.6522C18.3449 22.9595 15.9564 24.8538 13.7654 26.2002C10.1876 28.3989 7.13663 29.1366 5.82609 27.8261L20.1739 42.1739C21.4845 43.4845 24.5355 42.7467 28.1133 40.548C30.3042 39.2016 32.6927 37.3073 35 35C37.3073 32.6927 39.2016 30.3042 40.548 28.1133C42.7467 24.5355 43.4845 21.4845 42.1739 20.1739Z" /></svg>
             </Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0d141b', display: { xs: 'none', sm: 'block'} }}>Feedo</Typography>
+            
+            {/* Timer Badge */}
+            <Chip 
+                icon={<AccessTimeIcon sx={{ fontSize: '1rem !important' }} />} 
+                label={elapsedTime} 
+                size="small"
+                sx={{ bgcolor: '#f1f5f9', fontWeight: 600, color: '#475569' }} 
+            />
+            
+            {/* Participant Count Badge */}
+            <Chip 
+                icon={<GroupIcon sx={{ fontSize: '1rem !important' }} />} 
+                label={participantCount} 
+                size="small"
+                sx={{ bgcolor: '#f0f9ff', color: '#0369a1', fontWeight: 600, display: {xs: 'none', sm: 'flex'} }} 
+            />
         </Box>
 
-        {/* User Info & Leave Button */}
+        {/* Right: User Info */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
             <Box sx={{ 
                 display: 'flex', alignItems: 'center', gap: 1, 
                 bgcolor: '#f1f5f9', px: 1.5, py: 0.5, borderRadius: '20px',
-                maxWidth: '150px' // Restrict width so button isn't pushed out
+                maxWidth: '150px'
             }}>
                 <PersonIcon sx={{ color: '#64748b', fontSize: 18 }} />
                 <Typography noWrap sx={{ fontWeight: 600, color: '#334155', fontSize: '0.85rem' }}>
@@ -129,17 +194,17 @@ export default function StudentRoom() {
         </Box>
       </Box>
 
-      {/* 2. MAIN CONTENT (Reaction Stream) */}
+      {/* 2. MAIN CONTENT */}
       <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
         {socketInstance && <ReactionStream socket={socketInstance} />}
       </Box>
 
-      {/* 3. FIXED BOTTOM BAR (Controls) */}
+      {/* 3. REACTION BAR */}
       <Paper 
         elevation={6}
         square
         sx={{ 
-            height: 100, // Fixed height for the touch area
+            height: 100, 
             display: 'flex',
             zIndex: 100,
             borderTop: '1px solid #e2e8f0',
@@ -151,7 +216,7 @@ export default function StudentRoom() {
             key={r.id}
             onClick={() => sendReaction(r.id)}
             sx={{ 
-              flex: 1, // Equally splitter: Each item takes equal width
+              flex: 1, 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 

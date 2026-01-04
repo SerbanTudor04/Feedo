@@ -1,15 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { 
-  Paper, Typography, Box, List, ListItem, ListItemText, 
-  ListItemAvatar, Avatar, Grid, Button, Container, Chip
+  Paper, Typography, Box, Button, Container, Chip, Avatar, 
+  List, ListItem, ListItemAvatar, ListItemText, Fade 
 } from '@mui/material';
-import PersonIcon from '@mui/icons-material/Person';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import GroupIcon from '@mui/icons-material/Group';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import HistoryIcon from '@mui/icons-material/History';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import ReactionStream from '../components/ReactionStream';
+
+const REACTION_MAP = {
+  'happy': { emoji: '😊', label: 'Happy' },
+  'surprised': { emoji: '😲', label: 'Surprised' },
+  'confused': { emoji: '😕', label: 'Confused' },
+  'sad': { emoji: '☹️', label: 'Sad' }
+};
 
 export default function TeacherDashboard() {
   const location = useLocation();
@@ -17,41 +25,106 @@ export default function TeacherDashboard() {
   const { token, room_code } = location.state || {}; 
   
   const [participants, setParticipants] = useState([]);
+  const participantsRef = useRef([]); 
+  
   const [stats, setStats] = useState({ count: 0 });
   const [socketInstance, setSocketInstance] = useState(null);
+  
+  const [startTime, setStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState("00:00:00");
+  const [feedbackLog, setFeedbackLog] = useState([]);
 
-  // --- THEME CONSTANTS (Teacher Purple) ---
   const THEME_COLOR = '#9333ea';
-  const THEME_BG_ACCENT = '#f3e8ff'; // Light purple for backgrounds
+  const THEME_BG_ACCENT = '#f3e8ff';
 
+  // --- TIMER LOGIC ---
+  useEffect(() => {
+    if (!startTime) return;
+    const interval = setInterval(() => {
+        const now = new Date();
+        const start = new Date(startTime);
+        const diff = now - start;
+        if (diff < 0) { setElapsedTime("00:00:00"); return; }
+        const hours = Math.floor(diff / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        const hDisplay = hours > 0 ? hours.toString().padStart(2, '0') + ':' : '';
+        const mDisplay = minutes.toString().padStart(2, '0');
+        const sDisplay = seconds.toString().padStart(2, '0');
+        setElapsedTime(`${hDisplay}${mDisplay}:${sDisplay}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  // --- SOCKET LOGIC ---
   useEffect(() => {
     if (!token) return;
 
     const socket = connectSocket(token);
     setSocketInstance(socket);
 
-    socket.on('teacher_dashboard_data', (data) => {
-      setParticipants(data.participants.map(p => ({ ...p, status: 'active' })));
-      setStats(prev => ({ ...prev, count: data.participants.length }));
+    socket.on('room_state', (data) => {
+        if(data.startTime) setStartTime(data.startTime);
+        if(data.participantCount) setStats(prev => ({ ...prev, count: data.participantCount }));
     });
 
+    // 1. INITIAL LIST: Check 'leavedAt' to set status correctly
+    socket.on('teacher_dashboard_data', (data) => {
+      const pList = data.participants.map(p => ({ 
+          ...p, 
+          // If leavedAt exists, they are 'left', otherwise 'active'
+          status: p.leavedAt ? 'left' : 'active' 
+      }));
+      
+      setParticipants(pList);
+      participantsRef.current = pList;
+      
+      // Calculate active count based on status
+      const activeCount = pList.filter(p => p.status === 'active').length;
+      setStats(prev => ({ ...prev, count: activeCount }));
+    });
+
+    // 2. JOIN EVENT
     socket.on('participant_joined', (data) => {
       setParticipants(prev => {
         const exists = prev.find(p => p.nickname === data.nickname);
+        let newList;
         if (exists) {
-            return prev.map(p => p.nickname === data.nickname ? { ...p, status: 'active' } : p);
+            newList = prev.map(p => p.nickname === data.nickname ? { ...p, status: 'active' } : p);
         } else {
-            return [...prev, { nickname: data.nickname, status: 'active', joinAt: new Date() }];
+            newList = [...prev, { nickname: data.nickname, status: 'active', joinAt: new Date(), sessionId: data.sessionId }];
         }
+        participantsRef.current = newList;
+        return newList;
       });
       setStats(prev => ({ ...prev, count: data.count }));
     });
 
+    // 3. LEAVE EVENT
     socket.on('participant_left', (data) => {
-      setParticipants(prev => prev.map(p => 
-        p.nickname === data.nickname ? { ...p, status: 'left' } : p
-      ));
+      setParticipants(prev => {
+        const newList = prev.map(p => p.nickname === data.nickname ? { ...p, status: 'left' } : p);
+        participantsRef.current = newList;
+        return newList;
+      });
       setStats(prev => ({ ...prev, count: data.count }));
+    });
+
+    // 4. ANONYMOUS FEEDBACK LOGGING
+    socket.on('receive_feedback', (data) => {
+        const { value } = data; // We ignore sessionId/nickname for the log display
+        const reactionInfo = REACTION_MAP[value] || { emoji: '❓', label: value };
+        
+        const newLogEntry = {
+            id: Date.now() + Math.random(),
+            // ANONYMITY: Hardcoded string instead of nickname
+            nickname: "A student", 
+            emoji: reactionInfo.emoji,
+            label: reactionInfo.label,
+            timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        };
+
+        setFeedbackLog(prev => [newLogEntry, ...prev]);
     });
 
     return () => {
@@ -70,18 +143,12 @@ export default function TeacherDashboard() {
     }
   };
 
-  const copyCode = () => {
-      navigator.clipboard.writeText(room_code);
-  };
+  const copyCode = () => { navigator.clipboard.writeText(room_code); };
 
   return (
     <Box sx={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        bgcolor: '#f6f7f8',
-        backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f6f7f8',
+        backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px',
         fontFamily: "'Lexend', sans-serif"
     }}>
       
@@ -91,7 +158,6 @@ export default function TeacherDashboard() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {/* Logo */}
           <Box sx={{ width: 32, height: 32, color: THEME_COLOR }}>
              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.221 69.78 69.78 0 00-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
@@ -102,129 +168,137 @@ export default function TeacherDashboard() {
         <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: THEME_BG_ACCENT, border: '2px solid #fff' }} />
       </Box>
 
-      <Container maxWidth="xl" sx={{ flexGrow: 1, py: 4 }}>
+      <Container maxWidth="xl" sx={{ flexGrow: 1, py: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
         
         {/* Header Info Card */}
         <Paper elevation={0} sx={{ 
-            p: 3, mb: 3, borderRadius: '12px', bgcolor: 'white', border: '1px solid #e7edf3',
+            p: 3, borderRadius: '12px', bgcolor: 'white', border: '1px solid #e7edf3',
             boxShadow: '0 4px 6px rgba(0,0,0,0.02)', display: 'flex', flexDirection: { xs: 'column', md: 'row' },
             justifyContent: 'space-between', alignItems: 'center', gap: 2, position: 'relative', overflow: 'hidden'
         }}>
             <Box sx={{ height: '100%', width: 4, bgcolor: THEME_COLOR, position: 'absolute', top: 0, left: 0 }} />
 
             <Box>
-                <Typography variant="overline" color="text.secondary" fontWeight={600} letterSpacing={1}>Current Session</Typography>
+                <Typography variant="overline" color="text.secondary" fontWeight={600} letterSpacing={1}>Session Code</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
                     <Typography variant="h4" fontWeight={700} color="#0d141b">
                         {room_code}
                     </Typography>
-                    <Chip 
-                        icon={<ContentCopyIcon sx={{ fontSize: 14 }} />} 
-                        label="Copy" 
-                        size="small" 
-                        onClick={copyCode}
-                        clickable
-                        sx={{ bgcolor: '#f1f5f9', fontWeight: 600 }}
-                    />
+                    <Chip icon={<ContentCopyIcon sx={{ fontSize: 14 }} />} label="Copy" size="small" onClick={copyCode} clickable sx={{ bgcolor: '#f1f5f9', fontWeight: 600 }} />
                 </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Box sx={{ textAlign: 'center' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: THEME_COLOR }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, color: THEME_COLOR }}>
+                        <AccessTimeIcon />
+                        <Typography variant="h5" fontWeight={700} sx={{ minWidth: '80px' }}>{elapsedTime}</Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>ELAPSED TIME</Typography>
+                </Box>
+                <Box sx={{ width: '1px', height: '40px', bgcolor: '#e2e8f0' }} />
+                <Box sx={{ textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, color: THEME_COLOR }}>
                         <GroupIcon />
                         <Typography variant="h5" fontWeight={700}>{stats.count}</Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary">Live Students</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>STUDENTS</Typography>
                 </Box>
-
+                <Box sx={{ width: '1px', height: '40px', bgcolor: '#e2e8f0', display: {xs: 'none', md: 'block'} }} />
                 <Button 
-                    variant="contained" 
-                    color="error"
-                    startIcon={<StopCircleIcon />}
-                    onClick={handleStopActivity}
+                    variant="contained" color="error" startIcon={<StopCircleIcon />} onClick={handleStopActivity}
                     sx={{ 
-                        bgcolor: '#ef4444', 
-                        fontWeight: 700, 
-                        textTransform: 'none',
-                        px: 3, py: 1.5,
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.4)',
-                        '&:hover': { bgcolor: '#dc2626' }
+                        display: {xs: 'none', md: 'flex'}, bgcolor: '#ef4444', fontWeight: 700, textTransform: 'none', px: 3, py: 1.5, borderRadius: '8px', 
+                        boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.4)', '&:hover': { bgcolor: '#dc2626' }
                     }}
                 >
-                    Stop Activity
+                    End Class
                 </Button>
             </Box>
         </Paper>
 
-        <Grid container spacing={3} sx={{ height: 'calc(100vh - 240px)', minHeight: 500 }}>
-            
-            {/* Left Column: Roster */}
-            <Grid item xs={12} md={3} sx={{ height: '100%' }}>
-                <Paper elevation={0} sx={{ 
-                    height: '100%', display: 'flex', flexDirection: 'column', 
-                    borderRadius: '12px', border: '1px solid #e7edf3', bgcolor: 'white', overflow: 'hidden'
-                }}>
-                    <Box sx={{ p: 2, borderBottom: '1px solid #f1f5f9', bgcolor: '#f8fafc' }}>
-                        <Typography fontWeight={600} color="#334155">Participants</Typography>
-                    </Box>
-                    <List sx={{ overflowY: 'auto', flexGrow: 1, p: 0 }}>
-                        {participants.map((p, index) => (
-                            <ListItem key={index} sx={{ borderBottom: '1px solid #f8fafc' }}>
-                                <ListItemAvatar>
-                                    <Avatar sx={{ 
-                                        bgcolor: p.status === 'active' ? '#dcfce7' : '#f1f5f9', 
-                                        color: p.status === 'active' ? '#166534' : '#94a3b8',
-                                        width: 36, height: 36
-                                    }}>
-                                        <PersonIcon fontSize="small" />
-                                    </Avatar>
-                                </ListItemAvatar>
-                                <ListItemText 
-                                    primary={<Typography fontWeight="500" fontSize="0.95rem">{p.nickname}</Typography>} 
-                                    secondary={
-                                        <Typography variant="caption" color={p.status === 'active' ? 'success.main' : 'text.disabled'}>
-                                            {p.status === 'active' ? 'Online' : 'Left'}
-                                        </Typography>
-                                    } 
-                                />
-                            </ListItem>
-                        ))}
-                        {participants.length === 0 && (
-                            <Box sx={{ p: 4, textAlign: 'center', color: '#94a3b8' }}>
-                                <Typography variant="body2">Waiting for students to join...</Typography>
-                            </Box>
-                        )}
-                    </List>
-                </Paper>
-            </Grid>
+        {/* Horizontal Roster Bar */}
+        <Paper elevation={0} sx={{ 
+            p: 2, borderRadius: '12px', border: '1px solid #e7edf3', bgcolor: 'white',
+            display: 'flex', alignItems: 'center', gap: 2, overflow: 'hidden'
+        }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 2, borderRight: '1px solid #f1f5f9', minWidth: 'fit-content' }}>
+                <GroupIcon sx={{ color: '#94a3b8' }} />
+                <Typography fontWeight={600} color="#334155">Roster ({participants.length})</Typography>
+            </Box>
+            <Box sx={{ 
+                display: 'flex', gap: 1, overflowX: 'auto', pb: 0.5,
+                '&::-webkit-scrollbar': { height: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#e2e8f0', borderRadius: 4 }
+            }}>
+                {participants.map((p, index) => (
+                    <Chip
+                        key={index}
+                        avatar={
+                            <Avatar sx={{ 
+                                bgcolor: p.status === 'active' ? '#dcfce7' : '#f1f5f9', 
+                                color: p.status === 'active' ? '#166534' : '#94a3b8' 
+                            }}>
+                                {p.nickname.charAt(0).toUpperCase()}
+                            </Avatar>
+                        }
+                        label={p.nickname}
+                        variant={p.status === 'active' ? "filled" : "outlined"}
+                        sx={{ 
+                            bgcolor: p.status === 'active' ? '#fff' : '#f8fafc',
+                            border: p.status === 'active' ? '1px solid #bbf7d0' : '1px dashed #cbd5e1',
+                            color: p.status === 'active' ? '#14532d' : '#94a3b8',
+                            fontWeight: 600
+                        }}
+                    />
+                ))}
+                {participants.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>Waiting for students to join...</Typography>}
+            </Box>
+        </Paper>
 
-            {/* Right Column: Stream */}
-            <Grid item xs={12} md={9} sx={{ height: '100%' }}>
-                <Paper elevation={0} sx={{ 
-                    height: '100%', position: 'relative', 
-                    borderRadius: '12px', border: '1px solid #e7edf3', bgcolor: 'white',
-                    display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-                    overflow: 'hidden'
-                }}>
-                    {/* Background Grid Pattern within the stream area */}
-                    <Box sx={{ 
-                        position: 'absolute', inset: 0, opacity: 0.4,
-                        backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)', 
-                        backgroundSize: '20px 20px' 
-                    }} />
+        {/* Live Feedback Log (Anonymous) */}
+        <Paper elevation={0} sx={{ 
+            flexGrow: 1, minHeight: 400, borderRadius: '12px', border: '1px solid #e7edf3', bgcolor: 'white',
+            position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column'
+        }}>
+            <Box sx={{ p: 2, borderBottom: '1px solid #f1f5f9', bgcolor: '#f8fafc', zIndex: 10, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <HistoryIcon sx={{ color: '#64748b' }} />
+                <Typography fontWeight={600} color="#334155">Live Activity Log</Typography>
+            </Box>
+            <Box sx={{ position: 'absolute', inset: 0, opacity: 0.15, pointerEvents: 'none', zIndex: 0 }}>
+                {socketInstance && <ReactionStream socket={socketInstance} />}
+            </Box>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 0, zIndex: 1, position: 'relative' }}>
+                <List>
+                    {feedbackLog.length === 0 ? (
+                        <Box sx={{ textAlign: 'center', mt: 8, opacity: 0.5 }}>
+                            <Typography variant="h3">😴</Typography>
+                            <Typography variant="body1" mt={1}>No reactions yet.</Typography>
+                        </Box>
+                    ) : (
+                        feedbackLog.map((log) => (
+                            <Fade in={true} key={log.id}>
+                                <ListItem sx={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <ListItemAvatar>
+                                        <Avatar sx={{ bgcolor: 'transparent', fontSize: '1.5rem' }}>{log.emoji}</Avatar>
+                                    </ListItemAvatar>
+                                    <ListItemText 
+                                        primary={<Typography variant="body1" color="#0f172a"><strong>Someone</strong> felt <strong>{log.label}</strong></Typography>}
+                                        secondary={log.timestamp}
+                                    />
+                                </ListItem>
+                            </Fade>
+                        ))
+                    )}
+                </List>
+            </Box>
+        </Paper>
 
-                    {socketInstance && <ReactionStream socket={socketInstance} />}
-
-                    <Box sx={{ zIndex: 1, textAlign: 'center', pointerEvents: 'none' }}>
-                        <Typography variant="h3" color="#e2e8f0" fontWeight={700} sx={{ opacity: 0.5 }}>
-                            Live Feedback
-                        </Typography>
-                    </Box>
-                </Paper>
-            </Grid>
-        </Grid>
+        <Button 
+            variant="contained" color="error" fullWidth startIcon={<StopCircleIcon />} onClick={handleStopActivity}
+            sx={{ display: {xs: 'flex', md: 'none'}, bgcolor: '#ef4444', fontWeight: 700, borderRadius: '8px', py: 2 }}
+        >
+            End Class
+        </Button>
       </Container>
     </Box>
   );
