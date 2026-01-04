@@ -26,6 +26,9 @@ export const registerFeedbackHandlers = (io: Server, socket: AuthenticatedSocket
         try {
             const kindInt = REACTION_KIND_MAP[value];
             if (!kindInt) return;
+
+            // Fetch room start_time to calculate the "moment" (second of activity)
+            // Optimization tip: You could cache start_time in socket.data to avoid this DB call every click
             const room = await prisma.rooms.findUnique({
                 where: { id: user.room_id },
                 select: { start_time: true }
@@ -38,6 +41,11 @@ export const registerFeedbackHandlers = (io: Server, socket: AuthenticatedSocket
 
                 await prisma.room_feedback.create({
                     data: {
+                        // Use the next available ID (if your DB doesn't auto-increment, you might need logic here, 
+                        // but usually Prisma handles @default(autoincrement()) if set in DB. 
+                        // Your schema says @id(map: "room_feedback_pk"), check if it auto-increments in Postgres)
+                        id: undefined, // Let DB handle ID if auto-increment is on
+                        
                         session_id: user.session_id,
                         room_id: user.room_id,
                         kind: kindInt,                 // The Type (Happy, etc.)

@@ -69,7 +69,8 @@ export default function TeacherDashboard() {
         navigate('/report', { 
             state: { 
                 roomCode: room_code,
-                totalParticipants: participants.length
+                totalParticipants: participants.length,
+                token: token,
             } 
         });
     }

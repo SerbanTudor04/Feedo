@@ -1,6 +1,6 @@
 // specific url for your backend
-// const API_URL = 'http://localhost:3000/api';
-const API_URL = 'https://99dfh2dj-3000.euw.devtunnels.ms/api';
+const API_URL = 'http://localhost:3000/api';
+// const API_URL = 'https://99dfh2dj-3000.euw.devtunnels.ms/api';
 
 
 

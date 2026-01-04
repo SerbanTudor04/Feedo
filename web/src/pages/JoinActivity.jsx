@@ -80,7 +80,7 @@ export default function JoinActivity() {
               <path d="M42.1739 20.1739L27.8261 5.82609C29.1366 7.13663 28.3989 10.1876 26.2002 13.7654C24.8538 15.9564 22.9595 18.3449 20.6522 20.6522C18.3449 22.9595 15.9564 24.8538 13.7654 26.2002C10.1876 28.3989 7.13663 29.1366 5.82609 27.8261L20.1739 42.1739C21.4845 43.4845 24.5355 42.7467 28.1133 40.548C30.3042 39.2016 32.6927 37.3073 35 35C37.3073 32.6927 39.2016 30.3042 40.548 28.1133C42.7467 24.5355 43.4845 21.4845 42.1739 20.1739Z" fill="currentColor" />
             </svg>
           </Box>
-          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0d141b' }}>Classroom Live</Typography>
+          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0d141b' }}>Feedo</Typography>
         </Box>
         <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#e2e8f0', border: '2px solid #f1f5f9' }} />
       </Box>
@@ -192,23 +192,6 @@ export default function JoinActivity() {
                 >
                   {loading ? 'Connecting...' : 'Enter Class'}
                 </Button>
-
-                <Box sx={{ textAlign: 'center', mt: 1 }}>
-                  <Link 
-                    href="#" 
-                    underline="hover" 
-                    sx={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: 0.8, 
-                      color: '#4c739a', 
-                      fontSize: '14px',
-                      fontWeight: 500
-                    }}
-                  >
-                    <HelpOutlineIcon sx={{ fontSize: '18px' }} /> Trouble joining? Help center
-                  </Link>
-                </Box>
               </Box>
             </form>
           </Box>

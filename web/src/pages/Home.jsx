@@ -88,7 +88,7 @@ export default function Home() {
               bgColor="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
               buttonText="Join Activity"
               primaryButton
-              onClick={() => navigate('/join')} // Presupunând că ai ruta asta
+              onClick={() => navigate('/join')}
             />
           </Grid>
 
@@ -101,7 +101,7 @@ export default function Home() {
               color="#9333ea" // Purple conform designului
               bgColor="linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)"
               buttonText="Create Activity"
-              onClick={() => navigate('/create')} // Presupunând că ai ruta asta
+              onClick={() => navigate('/create')} 
             />
           </Grid>
         </Grid>

@@ -9,7 +9,7 @@ datasource db {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model room_feedback {
-  id                 Int       @id(map: "room_feedback_pk")
+  id                 Int       @id(map: "room_feedback_pk") @default(autoincrement())
   session_id         Int?
   room_id            Int?
   feedback_on        DateTime? @db.Timestamptz(6)
@@ -40,6 +40,8 @@ model rooms {
   duration        Int?
   teacher_id      Int?
   is_active       Boolean?        @default(false)
+  name            String?         @db.VarChar(256)
+  description     String?
   room_feedback   room_feedback[]
   room_members    room_members[]
 
