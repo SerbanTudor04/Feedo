@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { 
-  Paper, Typography, Box, Button, Container, Grid, CircularProgress, Alert, IconButton, Tooltip as MuiTooltip
+  Paper, Typography, Box, Button, Container, Grid, CircularProgress, Alert 
 } from '@mui/material';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -17,7 +17,6 @@ export default function ActivityReport() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Theme Constants matching CreateActivity
   const THEME_COLOR = '#9333ea'; 
   const THEME_HOVER = '#7e22ce';
   
@@ -33,7 +32,56 @@ export default function ActivityReport() {
     endTime: null
   });
 
-  // --- 1. Fetch Logic (Unchanged) ---
+  // --- Helper: Fill Gaps in Timeline ---
+  const processChartData = (rawData, startTime, durationMinutes) => {
+    if (!startTime) return [];
+
+    // 1. Determine the full range (in minutes)
+    // If duration is provided (closed session), use it. 
+    // Otherwise, calculate elapsed time from start to now.
+    const start = new Date(startTime);
+    const now = new Date();
+    const elapsedMinutes = durationMinutes > 0 
+        ? Math.floor(durationMinutes) 
+        : Math.floor((now - start) / 60000);
+    
+    // Ensure we don't have negative time if clocks are skewed
+    const maxMinute = Math.max(0, elapsedMinutes);
+
+    // 2. Group existing data by Minute (ignoring seconds for smoother graph)
+    const grouped = {};
+    rawData.forEach(d => {
+        // d.time is "MM:SS" -> we want just "MM" (integer)
+        const [mm] = d.time.split(':').map(Number);
+        
+        if (!grouped[mm]) {
+            grouped[mm] = { happy: 0, confused: 0, surprised: 0, sad: 0 };
+        }
+        grouped[mm].happy += (d.happy || 0);
+        grouped[mm].confused += (d.confused || 0);
+        grouped[mm].surprised += (d.surprised || 0);
+        grouped[mm].sad += (d.sad || 0);
+    });
+
+    // 3. Generate continuous timeline [0 ... maxMinute]
+    const filledTimeline = [];
+    for (let i = 0; i <= maxMinute; i++) {
+        const timeLabel = `${i.toString().padStart(2, '0')}:00`;
+        
+        if (grouped[i]) {
+            filledTimeline.push({ time: timeLabel, ...grouped[i] });
+        } else {
+            // Fill gap with zeros
+            filledTimeline.push({ 
+                time: timeLabel, happy: 0, confused: 0, surprised: 0, sad: 0 
+            });
+        }
+    }
+    
+    return filledTimeline;
+  };
+
+  // --- 1. Fetch Logic ---
   useEffect(() => {
     if (!token || !roomCode) {
         navigate('/'); 
@@ -44,12 +92,20 @@ export default function ActivityReport() {
         try {
             const result = await getReport(roomCode, token);
             if (result.data) {
-                setChartData(result.data.chartData || []);
+                // Process the raw data immediately to fill gaps
+                const processedData = processChartData(
+                    result.data.chartData || [], 
+                    result.data.startTime,
+                    result.data.durationMinutes
+                );
+
+                setChartData(processedData);
+                
                 setStats({
                     participants: result.data.totalParticipants || 0,
-                    duration: result.data.durationMinutes || 0, 
+                    duration: result.data.durationMinutes, 
                     startTime: result.data.startTime,
-                    endTime: result.data.endTime
+                    endTime: null 
                 });
             } else {
                 setError(result.detail || "Failed to load report data.");
@@ -65,7 +121,7 @@ export default function ActivityReport() {
     fetchData();
   }, [roomCode, token, navigate]);
 
-  // --- 2. Analysis Logic (Unchanged) ---
+  // --- 2. Analysis Logic ---
   const analysis = useMemo(() => {
     if (chartData.length === 0) return { mostFrequent: 'N/A', spikeTime: 'N/A', mostFrequentEmoji: '—' };
 
@@ -95,33 +151,41 @@ export default function ActivityReport() {
     };
   }, [chartData]);
 
-  // --- 3. CSV Export Logic (Unchanged) ---
+  // --- 3. Client-Side CSV Export (Now uses filled data) ---
   const handleExport = () => {
     if (!chartData.length) return;
+    
     const headers = "Time,Happy,Confused,Surprised,Sad\n";
     const rows = chartData.map(d => 
-        `${d.time},${d.happy},${d.confused},${d.surprised},${d.sad}`
+        `${d.time},${d.happy || 0},${d.confused || 0},${d.surprised || 0},${d.sad || 0}`
     ).join("\n");
     
-    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
+    
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Report_${roomCode}.csv`;
+    a.download = `Activity_Report_${roomCode}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
 
+  // --- 4. Duration Display ---
   const getDurationDisplay = () => {
-    if (stats.startTime && stats.endTime) {
+    if (stats.duration && stats.duration > 0) {
+        return `${Math.round(stats.duration)} Minutes`;
+    }
+    if (stats.startTime) {
         const start = new Date(stats.startTime);
-        const end = new Date(stats.endTime);
-        const diffMins = Math.round((end - start) / 60000);
-        return `${diffMins} Minutes`;
+        const now = new Date();
+        const diffMins = Math.floor((now - start) / 60000);
+        return `${Math.max(0, diffMins)} Minutes (Active)`;
     }
     return "Unknown";
   };
 
-  // --- Common Styles ---
   const cardStyle = {
     bgcolor: 'white', 
     borderRadius: '12px', 
@@ -150,7 +214,7 @@ export default function ActivityReport() {
       fontFamily: "'Lexend', sans-serif"
     }}>
 
-      {/* --- HEADER / NAVBAR (Matching CreateActivity) --- */}
+      {/* --- HEADER --- */}
       <Box sx={{ 
         width: '100%', 
         bgcolor: 'white', 
@@ -165,7 +229,6 @@ export default function ActivityReport() {
         zIndex: 50
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {/* Logo Icon (Purple) */}
           <Box sx={{ width: 32, height: 32, color: THEME_COLOR }}>
              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.221 69.78 69.78 0 00-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
@@ -173,15 +236,12 @@ export default function ActivityReport() {
           </Box>
           <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0d141b' }}>Feedo</Typography>
         </Box>
-        
-        {/* User Avatar Placeholder */}
         <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#f3e8ff', border: '2px solid #fff' }} />
       </Box>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* --- CONTENT --- */}
       <Container maxWidth="lg" sx={{ py: 4, flexGrow: 1 }}>
         
-        {/* Navigation & Title Row */}
         <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, gap: 2 }}>
           <Button 
               startIcon={<ArrowBackIcon />} 
@@ -221,9 +281,8 @@ export default function ActivityReport() {
 
         {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>{error}</Alert>}
 
-        {/* Top Stats Grid */}
+        {/* --- STATS GRID --- */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-            {/* Stat 1: Most Frequent */}
             <Grid item xs={12} md={4}>
                 <Paper elevation={0} sx={{ ...cardStyle, p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Box sx={{ 
@@ -242,7 +301,6 @@ export default function ActivityReport() {
                 </Paper>
             </Grid>
 
-            {/* Stat 2: Confusion Spike */}
             <Grid item xs={12} md={4}>
                 <Paper elevation={0} sx={{ ...cardStyle, p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Box sx={{ 
@@ -261,7 +319,6 @@ export default function ActivityReport() {
                 </Paper>
             </Grid>
 
-            {/* Stat 3: Duration */}
             <Grid item xs={12} md={4}>
                 <Paper elevation={0} sx={{ ...cardStyle, p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Box sx={{ 
@@ -281,13 +338,12 @@ export default function ActivityReport() {
             </Grid>
         </Grid>
 
-        {/* Main Chart Section */}
+        {/* --- CHART --- */}
         <Paper elevation={0} sx={{ ...cardStyle, p: { xs: 2, md: 4 } }}>
             <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0d141b' }}>
                     Feedback Timeline
                 </Typography>
-                {/* Optional legend helper */}
                 <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#2196F3' }} />
@@ -312,6 +368,8 @@ export default function ActivityReport() {
                             tickLine={false}
                             axisLine={false}
                             dy={10}
+                            interval="preserveStartEnd"
+                            minTickGap={30}
                         />
                         <YAxis 
                             allowDecimals={false} 
