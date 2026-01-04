@@ -210,7 +210,7 @@ export default function JoinActivity() {
                     '&:hover': { bgcolor: '#1170d2' }
                   }}
                 >
-                  {loading ? 'Connecting...' : 'Enter class'}
+                  {loading ? 'Connecting...' : 'Enter Activity'}
                 </Button>
               </Box>
             </form>
