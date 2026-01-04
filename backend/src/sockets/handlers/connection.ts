@@ -18,14 +18,12 @@ export const handleConnection = async (io: Server, socket: AuthenticatedSocket) 
             where: { room_id: user.room_id }
         });
 
-        // --- SCENARIO A: ALL USERS (Student & Teacher) ---
         // "receives number of participants and start time"
         socket.emit('room_state', {
             startTime: room?.start_time,
             participantCount: participantCount
         });
 
-        // --- SCENARIO B: TEACHER ONLY ---
         // "receives a list of all participants"
         if (user.role === 'teacher') {
             const members = await prisma.room_members.findMany({
