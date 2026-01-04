@@ -15,10 +15,14 @@ export default function Home() {
   return (
     <Box sx={{ 
       minHeight: '100vh', 
-      bgcolor: '#f6f7f8', 
+      display: 'flex', 
+      flexDirection: 'column',
+      // --- AICI AM ADĂUGAT STYLE-URILE PENTRU FUNDAL ---
+      bgcolor: '#f6f7f8',
+      backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
+      backgroundSize: '24px 24px',
       fontFamily: "'Lexend', sans-serif",
-      display: 'flex',
-      flexDirection: 'column'
+      // -----------------------------------------------
     }}>
       {/* --- HEADER --- */}
       <AppBar 
@@ -39,8 +43,6 @@ export default function Home() {
                 Feedo
               </Typography>
             </Box>
-            
-          
           </Toolbar>
         </Container>
       </AppBar>
@@ -126,11 +128,6 @@ export default function Home() {
           textAlign: 'center'
         }}
       >
-        {/* <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mb: 3 }}>
-          <Link href="#" underline="hover" sx={{ color: '#64748b', fontSize: '0.875rem' }}>Terms of Service</Link>
-          <Link href="#" underline="hover" sx={{ color: '#64748b', fontSize: '0.875rem' }}>Privacy Policy</Link>
-          <Link href="#" underline="hover" sx={{ color: '#64748b', fontSize: '0.875rem' }}>Support</Link>
-        </Box> */}
         <Typography variant="body2" sx={{ color: '#94a3b8' }}>
           © 2026 Feedo. All rights reserved.
         </Typography>
