@@ -4,11 +4,15 @@ const API_URL = 'http://localhost:3000/api';
 
 
 
-export const createRoom = async (nickname) => {
+export const createRoom = async (nickname,name,description) => {
   const res = await fetch(`${API_URL}/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname })
+    body: JSON.stringify({
+      nickname,
+      name,
+      description
+     })
   });
   return res.json();
 };

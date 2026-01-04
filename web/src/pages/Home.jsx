@@ -77,9 +77,17 @@ export default function Home() {
         </Box>
 
         {/* Role Selection Cards */}
-        <Grid container spacing={6} justifyContent={'center'} >
-          {/* Student Card */}
-          <Grid item xs={12} sm={6} md={4}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, // Column on mobile, Row on desktop
+          gap: 4, // Adds space between cards (32px)
+          justifyContent: 'center',
+          alignItems: 'stretch', // Ensures both cards are the same height
+          width: '100%' 
+        }}>
+          
+          {/* Student Card Wrapper */}
+          <Box sx={{ flex: 1 }}> {/* flex: 1 makes them grow equally */}
             <RoleCard 
               title="I am a Student"
               description="Join a session to give feedback, participate in polls, and ask questions in real-time."
@@ -90,21 +98,22 @@ export default function Home() {
               primaryButton
               onClick={() => navigate('/join')}
             />
-          </Grid>
+          </Box>
 
-          {/* Teacher Card */}
-          <Grid item xs={12} sm={6} md={4}>
+          {/* Teacher Card Wrapper */}
+          <Box sx={{ flex: 1 }}>
             <RoleCard 
               title="I am a Teacher"
               description="Create sessions, manage your courses, view live analytics, and engage your audience."
               icon={<CoPresentIcon sx={{ fontSize: 60 }} />}
-              color="#9333ea" // Purple conform designului
+              color="#9333ea"
               bgColor="linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)"
               buttonText="Create Activity"
               onClick={() => navigate('/create')} 
             />
-          </Grid>
-        </Grid>
+          </Box>
+
+        </Box>
       </Container>
 
       {/* --- FOOTER --- */}
@@ -117,11 +126,11 @@ export default function Home() {
           textAlign: 'center'
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mb: 3 }}>
+        {/* <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mb: 3 }}>
           <Link href="#" underline="hover" sx={{ color: '#64748b', fontSize: '0.875rem' }}>Terms of Service</Link>
           <Link href="#" underline="hover" sx={{ color: '#64748b', fontSize: '0.875rem' }}>Privacy Policy</Link>
           <Link href="#" underline="hover" sx={{ color: '#64748b', fontSize: '0.875rem' }}>Support</Link>
-        </Box>
+        </Box> */}
         <Typography variant="body2" sx={{ color: '#94a3b8' }}>
           © 2026 Feedo. All rights reserved.
         </Typography>

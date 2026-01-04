@@ -20,6 +20,15 @@ api_router.post('/create', async (req:Request, res:Response) => {
             });
             return;
         }
+        let name = body?.name;
+        if (!name) {
+            name = "Untitled Room";
+        }
+        
+        let description = body?.description;
+        if (!description) {
+            description = "";
+        }
 
         const newSession = await prisma.sessions.create({
             data: {
@@ -55,7 +64,9 @@ api_router.post('/create', async (req:Request, res:Response) => {
                 teacher_id: newSession.id,
                 is_active: true,          
                 start_time: new Date(),   
-                no_participants: 0
+                no_participants: 0,
+                name: name,
+                description: description
             }
         });
 

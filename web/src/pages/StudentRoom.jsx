@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Grid, Paper, Typography, Box, Button, Fade } from '@mui/material';
+import { Paper, Typography, Box, Button, Fade, Container } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
+import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import ReactionStream from '../components/ReactionStream';
 
 const reactions = [
-  { id: 'happy', emoji: '😊', label: 'Happy', color: '#E3F2FD', border: '#2196F3' },
-  { id: 'surprised', emoji: '😲', label: 'Surprised', color: '#F3E5F5', border: '#9C27B0' },
-  { id: 'confused', emoji: '😕', label: 'Confused', color: '#FFF3E0', border: '#FF9800' },
-  { id: 'sad', emoji: '☹️', label: 'Sad', color: '#FFEBEE', border: '#F44336' },
+  { id: 'happy', emoji: '😊', label: 'Happy', color: '#f0f9ff', activeColor: '#bae6fd' },
+  { id: 'surprised', emoji: '😲', label: 'Surprised', color: '#f5f3ff', activeColor: '#ddd6fe' },
+  { id: 'confused', emoji: '😕', label: 'Confused', color: '#fff7ed', activeColor: '#fed7aa' },
+  { id: 'sad', emoji: '☹️', label: 'Sad', color: '#fef2f2', activeColor: '#fecaca' },
 ];
 
 export default function StudentRoom() {
@@ -17,9 +19,10 @@ export default function StudentRoom() {
   const navigate = useNavigate();
   const { token, nickname } = location.state || {};
   const [socketInstance, setSocketInstance] = useState(null);
-  
-
   const [isEnded, setIsEnded] = useState(false);
+
+  // Theme Constant
+  const THEME_COLOR = '#137fec';
 
   useEffect(() => {
     if (!token) return;
@@ -27,19 +30,13 @@ export default function StudentRoom() {
     const s = connectSocket(token);
     setSocketInstance(s);
 
-    // 1. LISTEN FOR CLASS ENDED EVENT
     s.on('activity_ended', () => {
-        console.log("Class ended by teacher");
-        setIsEnded(true); // Trigger the UI change
-        disconnectSocket(); // Clean up connection
+        setIsEnded(true);
+        disconnectSocket();
     });
 
-    // 2. Handle forced disconnection (optional fallback)
     s.on('disconnect', (reason) => {
-        if (reason === "io server disconnect") {
-            // The server explicitly kicked us (which happens in stop_activity)
-            setIsEnded(true);
-        }
+        if (reason === "io server disconnect") setIsEnded(true);
     });
 
     return () => {
@@ -53,93 +50,129 @@ export default function StudentRoom() {
     if (socket && !isEnded) socket.emit('send_feedback', { value }); 
   };
 
-  // 3. RENDER "CLASS OVER" SCREEN IF ENDED
+  const handleLeave = () => {
+    disconnectSocket();
+    navigate('/');
+  };
+
+  // --- SCREEN: CLASS ENDED ---
   if (isEnded) {
     return (
-        <Fade in={true}>
-            <Box sx={{ 
-                height: '100vh', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                background: 'linear-gradient(135deg, #ece9e6 0%, #ffffff 100%)',
-                p: 3,
-                textAlign: 'center'
-            }}>
-                <Typography variant="h1" sx={{ mb: 2 }}>🏁</Typography>
-                <Typography variant="h4" fontWeight="bold" gutterBottom>
-                    Activity Ended
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                    The teacher has closed this session. Thanks for participating!
-                </Typography>
-                <Button 
-                    variant="contained" 
-                    size="large" 
-                    startIcon={<HomeIcon />}
-                    onClick={() => navigate('/')}
-                >
-                    Back to Home
-                </Button>
-            </Box>
-        </Fade>
+        <Box sx={{ 
+            minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            bgcolor: '#f6f7f8', p: 3, fontFamily: "'Lexend', sans-serif"
+        }}>
+            <Fade in={true}>
+                <Paper elevation={0} sx={{ 
+                    maxWidth: 480, width: '100%', textAlign: 'center', p: 5, borderRadius: '12px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #e7edf3'
+                }}>
+                    <Typography sx={{ fontSize: '4rem', mb: 2 }}>🏁</Typography>
+                    <Typography variant="h5" fontWeight={700} gutterBottom>Activity Ended</Typography>
+                    <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')} fullWidth sx={{ mt: 3, bgcolor: '#0f172a' }}>
+                        Back to Home
+                    </Button>
+                </Paper>
+            </Fade>
+        </Box>
     );
   }
 
-  // STANDARD ACTIVE UI
+  // --- SCREEN: ACTIVE CLASS ---
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      bgcolor: '#f6f7f8',
+      fontFamily: "'Lexend', sans-serif",
+      overflow: 'hidden' // Prevent page scroll, handle inside components
+    }}>
       
-      {socketInstance && <ReactionStream socket={socketInstance} />}
+      {/* 1. NAVBAR */}
+      <Box sx={{ 
+        flexShrink: 0,
+        bgcolor: 'white', borderBottom: '1px solid #e7edf3', 
+        px: 2, height: 60, 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+        zIndex: 50
+      }}>
+        {/* Brand */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ width: 28, height: 28, color: THEME_COLOR }}>
+                <svg fill="currentColor" viewBox="0 0 48 48"><path d="M42.1739 20.1739L27.8261 5.82609C29.1366 7.13663 28.3989 10.1876 26.2002 13.7654C24.8538 15.9564 22.9595 18.3449 20.6522 20.6522C18.3449 22.9595 15.9564 24.8538 13.7654 26.2002C10.1876 28.3989 7.13663 29.1366 5.82609 27.8261L20.1739 42.1739C21.4845 43.4845 24.5355 42.7467 28.1133 40.548C30.3042 39.2016 32.6927 37.3073 35 35C37.3073 32.6927 39.2016 30.3042 40.548 28.1133C42.7467 24.5355 43.4845 21.4845 42.1739 20.1739Z" /></svg>
+            </Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0d141b', display: { xs: 'none', sm: 'block'} }}>Feedo</Typography>
+        </Box>
 
+        {/* User Info & Leave Button */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+            <Box sx={{ 
+                display: 'flex', alignItems: 'center', gap: 1, 
+                bgcolor: '#f1f5f9', px: 1.5, py: 0.5, borderRadius: '20px',
+                maxWidth: '150px' // Restrict width so button isn't pushed out
+            }}>
+                <PersonIcon sx={{ color: '#64748b', fontSize: 18 }} />
+                <Typography noWrap sx={{ fontWeight: 600, color: '#334155', fontSize: '0.85rem' }}>
+                    {nickname}
+                </Typography>
+            </Box>
+            
+            <Button 
+                onClick={handleLeave} 
+                size="small"
+                color="error" 
+                sx={{ minWidth: 0, p: 1 }}
+            >
+                <LogoutIcon fontSize="small" />
+            </Button>
+        </Box>
+      </Box>
+
+      {/* 2. MAIN CONTENT (Reaction Stream) */}
+      <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
+        {socketInstance && <ReactionStream socket={socketInstance} />}
+      </Box>
+
+      {/* 3. FIXED BOTTOM BAR (Controls) */}
       <Paper 
-        elevation={4}
-        square 
+        elevation={6}
+        square
         sx={{ 
-          p: 2, 
-          background: 'linear-gradient(90deg, #2196F3 0%, #00B0FF 100%)', 
-          color: 'white', 
-          textAlign: 'center',
-          zIndex: 20
+            height: 100, // Fixed height for the touch area
+            display: 'flex',
+            zIndex: 100,
+            borderTop: '1px solid #e2e8f0',
+            bgcolor: 'white'
         }}
       >
-        <Typography variant="h6">Student Panel</Typography>
-        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-          Logged in as: <strong>{nickname}</strong>
-        </Typography>
+        {reactions.map((r) => (
+          <Box 
+            key={r.id}
+            onClick={() => sendReaction(r.id)}
+            sx={{ 
+              flex: 1, // Equally splitter: Each item takes equal width
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              cursor: 'pointer',
+              borderRight: '1px solid #f1f5f9',
+              transition: 'background-color 0.1s',
+              bgcolor: 'white',
+              '&:last-child': { borderRight: 'none' },
+              '&:active': { bgcolor: r.activeColor }
+            }}
+          >
+            <Typography sx={{ fontSize: '2.5rem', lineHeight: 1, mb: 0.5 }}>
+                {r.emoji}
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {r.label}
+            </Typography>
+          </Box>
+        ))}
       </Paper>
-
-      <Box sx={{ flexGrow: 1, p: 2, display: 'flex', alignItems: 'center', zIndex: 20 }}>
-        <Grid container spacing={2} sx={{ height: '100%', maxHeight: 600, mx: 'auto' }}>
-          {reactions.map((r) => (
-            <Grid item xs={6} key={r.id} sx={{ height: '50%' }}>
-              <Paper 
-                elevation={3}
-                onClick={() => sendReaction(r.id)}
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  bgcolor: r.color,
-                  border: `2px solid ${r.border}`,
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  transition: 'all 0.1s ease',
-                  '&:active': { transform: 'scale(0.92)', boxShadow: 0 }
-                }}
-              >
-                <Typography sx={{ fontSize: '4rem', mb: 1 }}>{r.emoji}</Typography>
-                <Typography variant="h6" fontWeight="bold" color="text.secondary">
-                  {r.label}
-                </Typography>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
     </Box>
   );
 }

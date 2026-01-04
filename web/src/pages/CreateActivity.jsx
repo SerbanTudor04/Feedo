@@ -10,20 +10,38 @@ import {
   Container 
 } from '@mui/material';
 import { useNavigate } from 'react-router';
-import CoPresentIcon from '@mui/icons-material/CoPresent'; // Iconiță de profesor/prezentare
+import CoPresentIcon from '@mui/icons-material/CoPresent'; // Profesor
+import TitleIcon from '@mui/icons-material/Title';         // Nume activitate
+import DescriptionIcon from '@mui/icons-material/Description'; // Descriere
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { createRoom } from '../services/api';
 
 export default function CreateActivity() {
   const navigate = useNavigate();
+  
+  // State-uri pentru formular
   const [nickname, setNickname] = useState('');
+  const [activityName, setActivityName] = useState('');
+  const [description, setDescription] = useState('');
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Culori specifice pentru profesor (Mov - conform Home.jsx)
+  // Culori specifice pentru profesor
   const THEME_COLOR = '#9333ea'; 
   const THEME_HOVER = '#7e22ce';
+
+  // Stil comun pentru Input-uri ca să nu repetăm codul
+  const inputStyles = {
+    '& .MuiOutlinedInput-root': { 
+      bgcolor: '#f8fafc',
+      borderRadius: '8px',
+      '& fieldset': { borderColor: '#cfdbe7' },
+      '&:hover fieldset': { borderColor: THEME_COLOR },
+      '&.Mui-focused fieldset': { borderColor: THEME_COLOR },
+    }
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -31,15 +49,16 @@ export default function CreateActivity() {
     setError('');
 
     try {
-      // Backend-ul așteaptă doar nickname-ul pentru creare
-      const result = await createRoom(nickname);
+      // Trimitem toate cele 3 câmpuri către API
+      // Backend-ul va seta default "Untitled Room" dacă activityName e gol
+      const result = await createRoom(nickname, activityName, description);
       
       if (result.data?.token) {
         navigate(`/room/${result.data.room_code}`, { 
           state: { 
             token: result.data.token,
             room_code: result.data.room_code,
-            isTeacher: true // Setăm flag-ul de profesor
+            isTeacher: true 
           } 
         });
       } else {
@@ -78,7 +97,6 @@ export default function CreateActivity() {
         zIndex: 50
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {/* Logo simplificat */}
           <Box sx={{ width: 32, height: 32, color: THEME_COLOR }}>
              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.221 69.78 69.78 0 00-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
@@ -90,7 +108,7 @@ export default function CreateActivity() {
       </Box>
 
       {/* --- MAIN CONTENT --- */}
-      <Container maxWidth="sm" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+      <Container maxWidth="sm" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 6 }}>
         <Paper 
           elevation={0} 
           sx={{ 
@@ -104,28 +122,28 @@ export default function CreateActivity() {
             border: '1px solid #e7edf3'
           }}
         >
-          {/* Accent Border (Mov pentru Profesori) */}
+          {/* Accent Border */}
           <Box sx={{ height: 6, width: '100%', bgcolor: THEME_COLOR, position: 'absolute', top: 0, left: 0 }} />
           
           <Box sx={{ p: { xs: 4, sm: 6 } }}>
-            <Box sx={{ textAlign: 'center', mb: 5 }}>
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
               <Typography sx={{ fontSize: '32px', fontWeight: 700, color: '#0d141b', lineHeight: 1.2, mb: 1 }}>
                 Start Activity
               </Typography>
               <Typography sx={{ color: '#4c739a', fontSize: '14px' }}>
-                Create a new room to gather live feedback.
+                Setup your room details below.
               </Typography>
             </Box>
 
             {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>{error}</Alert>}
 
             <form onSubmit={handleCreate}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 
-                {/* Field: Professor Nickname */}
+                {/* 1. Professor Name */}
                 <Box>
-                  <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '1rem', fontWeight: 500, color: '#0d141b', mb: 1 }}>
-                    <CoPresentIcon sx={{ fontSize: '20px', color: THEME_COLOR }} /> Professor Name / Nickname
+                  <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.95rem', fontWeight: 600, color: '#0d141b', mb: 1 }}>
+                    <CoPresentIcon sx={{ fontSize: '20px', color: THEME_COLOR }} /> Professor Name
                   </Typography>
                   <TextField 
                     fullWidth 
@@ -134,16 +152,42 @@ export default function CreateActivity() {
                     onChange={(e) => setNickname(e.target.value)}
                     variant="outlined"
                     required
-                    inputProps={{ style: { padding: '15px' } }}
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': { 
-                        bgcolor: '#f8fafc',
-                        borderRadius: '8px',
-                        '& fieldset': { borderColor: '#cfdbe7' },
-                        '&:hover fieldset': { borderColor: THEME_COLOR },
-                        '&.Mui-focused fieldset': { borderColor: THEME_COLOR },
-                      } 
-                    }}
+                    inputProps={{ style: { padding: '14px' } }}
+                    sx={inputStyles}
+                  />
+                </Box>
+
+                {/* 2. Activity Name */}
+                <Box>
+                  <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.95rem', fontWeight: 600, color: '#0d141b', mb: 1 }}>
+                    <TitleIcon sx={{ fontSize: '20px', color: THEME_COLOR }} /> Activity Name
+                  </Typography>
+                  <TextField 
+                    fullWidth 
+                    placeholder="e.g. Introduction to React Hooks"
+                    value={activityName}
+                    onChange={(e) => setActivityName(e.target.value)}
+                    variant="outlined"
+                    // Nu e required, backend-ul pune default
+                    inputProps={{ style: { padding: '14px' } }}
+                    sx={inputStyles}
+                  />
+                </Box>
+
+                {/* 3. Description */}
+                <Box>
+                  <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.95rem', fontWeight: 600, color: '#0d141b', mb: 1 }}>
+                    <DescriptionIcon sx={{ fontSize: '20px', color: THEME_COLOR }} /> Description (Optional)
+                  </Typography>
+                  <TextField 
+                    fullWidth 
+                    placeholder="Briefly describe the session topics..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    variant="outlined"
+                    multiline
+                    rows={3}
+                    sx={inputStyles}
                   />
                 </Box>
 
@@ -155,19 +199,35 @@ export default function CreateActivity() {
                   endIcon={!loading && <ArrowForwardIcon />}
                   sx={{ 
                     height: 56, 
+                    mt: 2,
                     bgcolor: THEME_COLOR, 
                     fontSize: '1rem', 
                     fontWeight: 700, 
                     textTransform: 'none',
                     borderRadius: '8px',
-                    boxShadow: `0 4px 6px -1px ${THEME_COLOR}40`, // Shadow mov transparent
+                    boxShadow: `0 4px 6px -1px ${THEME_COLOR}40`,
                     '&:hover': { bgcolor: THEME_HOVER }
                   }}
                 >
                   {loading ? 'Creating Room...' : 'Launch Activity'}
                 </Button>
 
-               
+                <Box sx={{ textAlign: 'center', mt: 1 }}>
+                  <Link 
+                    href="#" 
+                    underline="hover" 
+                    sx={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: 0.8, 
+                      color: '#4c739a', 
+                      fontSize: '14px',
+                      fontWeight: 500
+                    }}
+                  >
+                    <HelpOutlineIcon sx={{ fontSize: '18px' }} /> Need help setting up?
+                  </Link>
+                </Box>
               </Box>
             </form>
           </Box>
