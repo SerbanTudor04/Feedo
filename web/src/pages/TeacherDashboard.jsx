@@ -2,13 +2,16 @@ import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { 
   Paper, Typography, Box, Button, Container, Chip, Avatar, 
-  List, ListItem, ListItemAvatar, ListItemText, Fade 
+  List, ListItem, ListItemAvatar, ListItemText, Fade, 
+  Dialog, DialogTitle, DialogContent, IconButton, Link 
 } from '@mui/material';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import GroupIcon from '@mui/icons-material/Group';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HistoryIcon from '@mui/icons-material/History';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CloseIcon from '@mui/icons-material/Close'; // Iconita pentru inchis modalul
 import { connectSocket, disconnectSocket } from '../services/socket';
 import ReactionStream from '../components/ReactionStream';
 
@@ -30,12 +33,18 @@ export default function TeacherDashboard() {
   const [stats, setStats] = useState({ count: 0 });
   const [socketInstance, setSocketInstance] = useState(null);
   
+  // State pentru Titlu, Descriere si Modal
+  const [activityName, setActivityName] = useState("Untitled Activity");
+  const [activityDesc, setActivityDesc] = useState("");
+  const [openDescModal, setOpenDescModal] = useState(false); // State pentru modal
+
   const [startTime, setStartTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [feedbackLog, setFeedbackLog] = useState([]);
 
   const THEME_COLOR = '#9333ea';
   const THEME_BG_ACCENT = '#f3e8ff';
+  const MAX_DESC_LENGTH = 150; // Numarul de caractere dupa care apare "View More"
 
   // --- TIMER LOGIC ---
   useEffect(() => {
@@ -66,25 +75,25 @@ export default function TeacherDashboard() {
     socket.on('room_state', (data) => {
         if(data.startTime) setStartTime(data.startTime);
         if(data.participantCount) setStats(prev => ({ ...prev, count: data.participantCount }));
+        if(data.name) setActivityName(data.name);
     });
 
-    // 1. INITIAL LIST: Check 'leavedAt' to set status correctly
     socket.on('teacher_dashboard_data', (data) => {
+      if (data.roomName) setActivityName(data.roomName);
+      if (data.roomDescription) setActivityDesc(data.roomDescription);
+      
       const pList = data.participants.map(p => ({ 
           ...p, 
-          // If leavedAt exists, they are 'left', otherwise 'active'
           status: p.leavedAt ? 'left' : 'active' 
       }));
       
       setParticipants(pList);
       participantsRef.current = pList;
       
-      // Calculate active count based on status
       const activeCount = pList.filter(p => p.status === 'active').length;
       setStats(prev => ({ ...prev, count: activeCount }));
     });
 
-    // 2. JOIN EVENT
     socket.on('participant_joined', (data) => {
       setParticipants(prev => {
         const exists = prev.find(p => p.nickname === data.nickname);
@@ -100,7 +109,6 @@ export default function TeacherDashboard() {
       setStats(prev => ({ ...prev, count: data.count }));
     });
 
-    // 3. LEAVE EVENT
     socket.on('participant_left', (data) => {
       setParticipants(prev => {
         const newList = prev.map(p => p.nickname === data.nickname ? { ...p, status: 'left' } : p);
@@ -110,14 +118,12 @@ export default function TeacherDashboard() {
       setStats(prev => ({ ...prev, count: data.count }));
     });
 
-    // 4. ANONYMOUS FEEDBACK LOGGING
     socket.on('receive_feedback', (data) => {
-        const { value } = data; // We ignore sessionId/nickname for the log display
+        const { value } = data;
         const reactionInfo = REACTION_MAP[value] || { emoji: '❓', label: value };
         
         const newLogEntry = {
             id: Date.now() + Math.random(),
-            // ANONYMITY: Hardcoded string instead of nickname
             nickname: "A student", 
             emoji: reactionInfo.emoji,
             label: reactionInfo.label,
@@ -169,6 +175,43 @@ export default function TeacherDashboard() {
       </Box>
 
       <Container maxWidth="xl" sx={{ flexGrow: 1, py: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        
+        {/* --- SECTION: Titlu Activitate și Descriere --- */}
+        <Box sx={{ mb: 1 }}>
+            <Typography variant="h4" fontWeight={800} color="#0d141b" sx={{ mb: 1 }}>
+                {activityName}
+            </Typography>
+            
+            {activityDesc && (
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, color: '#64748b', maxWidth: '800px' }}>
+                    <DescriptionIcon sx={{ fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+                    <Typography variant="body1" lineHeight={1.6}>
+                        {activityDesc.length > MAX_DESC_LENGTH ? (
+                            <>
+                                {activityDesc.slice(0, MAX_DESC_LENGTH)}...
+                                <Box component="span" sx={{ ml: 1 }}>
+                                    <Link 
+                                        component="button" 
+                                        onClick={() => setOpenDescModal(true)}
+                                        sx={{ 
+                                            fontWeight: 600, 
+                                            color: THEME_COLOR, 
+                                            textDecoration: 'none', 
+                                            cursor: 'pointer',
+                                            '&:hover': { textDecoration: 'underline' }
+                                        }}
+                                    >
+                                        View More
+                                    </Link>
+                                </Box>
+                            </>
+                        ) : (
+                            activityDesc
+                        )}
+                    </Typography>
+                </Box>
+            )}
+        </Box>
         
         {/* Header Info Card */}
         <Paper elevation={0} sx={{ 
@@ -255,7 +298,7 @@ export default function TeacherDashboard() {
             </Box>
         </Paper>
 
-        {/* Live Feedback Log (Anonymous) */}
+        {/* Live Feedback Log */}
         <Paper elevation={0} sx={{ 
             flexGrow: 1, minHeight: 400, borderRadius: '12px', border: '1px solid #e7edf3', bgcolor: 'white',
             position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column'
@@ -300,6 +343,35 @@ export default function TeacherDashboard() {
             End Class
         </Button>
       </Container>
+
+      {/* --- MODAL PENTRU DESCRIERE --- */}
+      <Dialog 
+        open={openDescModal} 
+        onClose={() => setOpenDescModal(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+            sx: { borderRadius: '16px', p: 1 }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+            <Typography variant="h5" fontWeight={800} color="#0d141b">
+                Activity Details
+            </Typography>
+            <IconButton onClick={() => setOpenDescModal(false)}>
+                <CloseIcon />
+            </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderTop: '1px solid #f1f5f9', borderBottom: 'none' }}>
+            <Typography variant="h6" color={THEME_COLOR} fontWeight={700} gutterBottom>
+                {activityName}
+            </Typography>
+            <Typography variant="body1" lineHeight={1.8} color="#475569" sx={{ whiteSpace: 'pre-wrap' }}>
+                {activityDesc}
+            </Typography>
+        </DialogContent>
+      </Dialog>
+
     </Box>
   );
 }

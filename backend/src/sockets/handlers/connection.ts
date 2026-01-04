@@ -10,7 +10,7 @@ export const handleConnection = async (io: Server, socket: AuthenticatedSocket) 
         // 1. Get Room Info
         const room = await prisma.rooms.findUnique({
             where: { id: user.room_id },
-            select: { start_time: true, code: true }
+            select: { start_time: true, code: true, name:true, description:true }
         });
 
         const participantCount = await prisma.room_members.count({
@@ -41,7 +41,9 @@ export const handleConnection = async (io: Server, socket: AuthenticatedSocket) 
 
             socket.emit('teacher_dashboard_data', {
                 participants: participantList,
-                timestamp: new Date() 
+                timestamp: new Date(),
+                roomName: room?.name,
+                roomDescription: room?.description,
             });
         } 
         else {

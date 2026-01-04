@@ -211,23 +211,6 @@ export default function CreateActivity() {
                 >
                   {loading ? 'Creating Room...' : 'Launch Activity'}
                 </Button>
-
-                <Box sx={{ textAlign: 'center', mt: 1 }}>
-                  <Link 
-                    href="#" 
-                    underline="hover" 
-                    sx={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: 0.8, 
-                      color: '#4c739a', 
-                      fontSize: '14px',
-                      fontWeight: 500
-                    }}
-                  >
-                    <HelpOutlineIcon sx={{ fontSize: '18px' }} /> Need help setting up?
-                  </Link>
-                </Box>
               </Box>
             </form>
           </Box>
