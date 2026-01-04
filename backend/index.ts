@@ -3,16 +3,23 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import api_router from './src/router.js';
 import { initializeSockets } from './src/sockets/index.js';
+import cors from 'cors';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 // 1. Create the HTTP Server
+
+app.use(cors({
+    origin: "http://localhost:5173", // Allow your Vite frontend
+    methods: ["GET", "POST"]
+}));
+
 const httpServer = createServer(app);
 
 // 2. Initialize Socket.io
 const io = new Server(httpServer, {
     cors: {
-        origin: "*", // Allow your frontend (React/Vue/etc) to connect
+        origin: "*", 
         methods: ["GET", "POST"]
     }
 });

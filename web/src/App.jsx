@@ -1,35 +1,30 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { AppBar } from '@mui/material';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Container from '@mui/material/Container';
+import { Link, Route, Routes } from 'react-router';
+import RoomDispatcher from './pages/RoomDispatcher.jsx';
+import JoinActivity from './pages/JoinActivity.jsx';
+import Home from './pages/Home.jsx';
 import './App.css'
-
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      
+
+        <Routes>
+
+          {/* The unified Home page handles both Create and Join */}
+          <Route path="/" element={<Home />} />
+          <Route path="/join" element={<JoinActivity />} />
+          {/* One Route to rule them all: The Dispatcher decides what to show */}
+          <Route path="/room/:roomCode" element={<RoomDispatcher />} />
+
+        </Routes>
+  
     </>
-  )
+  );
 }
 
 export default App
