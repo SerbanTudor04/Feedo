@@ -2,7 +2,7 @@
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // Automatically picks the right URL
-const API_URL = isLocal 
+export const API_URL = isLocal 
   ? 'http://localhost:3000/api' 
   : 'https://feedo.igbs.blog/api';
 
@@ -22,6 +22,7 @@ export const createRoom = async (nickname,name,description) => {
 };
 
 export const joinRoom = async (nickname, code) => {
+  console.log('Joining room with nickname:', nickname, 'and code:', code);
   const res = await fetch(`${API_URL}/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
