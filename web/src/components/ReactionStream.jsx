@@ -32,13 +32,19 @@ export default function ReactionStream({ socket }) {
   }, [socket]);
 
   const getEmoji = (val) => {
-    const map = { happy: '😊', confused: '😕', surprised: '😲', sad: '☹️' };
+    // UPDATED: Now matches the StudentRoom buttons exactly
+    const map = { 
+        happy: '🙂',      // Changed from 😊
+        confused: '😐',   // Changed from 😕
+        surprised: '🤩',  // Changed from 😲
+        sad: '☹️'         // Same
+    };
     return map[val] || val; 
   };
 
   return (
     <Box sx={{ 
-      position: 'absolute', // Changed from 'fixed' to 'absolute' to respect parent container
+      position: 'absolute', 
       top: 0, 
       left: 0, 
       right: 0, 
@@ -52,7 +58,7 @@ export default function ReactionStream({ socket }) {
           key={r.id}
           sx={{
             position: 'absolute',
-            bottom: '0%', // Start from bottom of the container
+            bottom: '0%', 
             left: r.left,
             fontSize: '3rem',
             animation: `${floatUp} 2s ease-out forwards`

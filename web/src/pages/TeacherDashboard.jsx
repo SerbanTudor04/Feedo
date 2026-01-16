@@ -11,15 +11,16 @@ import GroupIcon from '@mui/icons-material/Group';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HistoryIcon from '@mui/icons-material/History';
 import DescriptionIcon from '@mui/icons-material/Description';
-import CloseIcon from '@mui/icons-material/Close'; // Iconita pentru inchis modalul
+import CloseIcon from '@mui/icons-material/Close'; 
 import { connectSocket, disconnectSocket } from '../services/socket';
 import ReactionStream from '../components/ReactionStream';
 
+// UPDATED: Standardized emojis to match Student Room
 const REACTION_MAP = {
-  'happy': { emoji: '😊', label: 'Happy' },
-  'surprised': { emoji: '😲', label: 'Surprised' },
-  'confused': { emoji: '😕', label: 'Confused' },
-  'sad': { emoji: '☹️', label: 'Sad' }
+  'happy': { emoji: '🙂', label: 'I understand' },
+  'surprised': { emoji: '🤩', label: 'Interesting!' },
+  'confused': { emoji: '😐', label: 'Unclear' },
+  'sad': { emoji: '☹️', label: 'I’m lost' }
 };
 
 export default function TeacherDashboard() {
@@ -33,10 +34,9 @@ export default function TeacherDashboard() {
   const [stats, setStats] = useState({ count: 0 });
   const [socketInstance, setSocketInstance] = useState(null);
   
-  // State pentru Titlu, Descriere si Modal
   const [activityName, setActivityName] = useState("Untitled Activity");
   const [activityDesc, setActivityDesc] = useState("");
-  const [openDescModal, setOpenDescModal] = useState(false); // State pentru modal
+  const [openDescModal, setOpenDescModal] = useState(false);
 
   const [startTime, setStartTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
@@ -44,7 +44,7 @@ export default function TeacherDashboard() {
 
   const THEME_COLOR = '#9333ea';
   const THEME_BG_ACCENT = '#f3e8ff';
-  const MAX_DESC_LENGTH = 150; // Numarul de caractere dupa care apare "View More"
+  const MAX_DESC_LENGTH = 150; 
 
   // --- TIMER LOGIC ---
   useEffect(() => {
@@ -171,7 +171,28 @@ export default function TeacherDashboard() {
           </Box>
           <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0d141b' }}>Feedo Teacher</Typography>
         </Box>
-        <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: THEME_BG_ACCENT, border: '2px solid #fff' }} />
+        
+        {/* Right Side: End Class Button & Profile */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Button 
+                variant="contained" 
+                color="error" 
+                size="small"
+                startIcon={<StopCircleIcon />} 
+                onClick={handleStopActivity}
+                sx={{ 
+                    bgcolor: '#ef4444', 
+                    fontWeight: 700, 
+                    textTransform: 'none', 
+                    borderRadius: '8px',
+                    boxShadow: 'none',
+                    '&:hover': { bgcolor: '#dc2626', boxShadow: 'none' }
+                }}
+            >
+                End Class
+            </Button>
+            <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: THEME_BG_ACCENT, border: '2px solid #fff' }} />
+        </Box>
       </Box>
 
       <Container maxWidth="xl" sx={{ flexGrow: 1, py: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -247,16 +268,6 @@ export default function TeacherDashboard() {
                     </Box>
                     <Typography variant="caption" color="text.secondary" fontWeight={600}>STUDENTS</Typography>
                 </Box>
-                <Box sx={{ width: '1px', height: '40px', bgcolor: '#e2e8f0', display: {xs: 'none', md: 'block'} }} />
-                <Button 
-                    variant="contained" color="error" startIcon={<StopCircleIcon />} onClick={handleStopActivity}
-                    sx={{ 
-                        display: {xs: 'none', md: 'flex'}, bgcolor: '#ef4444', fontWeight: 700, textTransform: 'none', px: 3, py: 1.5, borderRadius: '8px', 
-                        boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.4)', '&:hover': { bgcolor: '#dc2626' }
-                    }}
-                >
-                    End Class
-                </Button>
             </Box>
         </Paper>
 
@@ -325,7 +336,7 @@ export default function TeacherDashboard() {
                                         <Avatar sx={{ bgcolor: 'transparent', fontSize: '1.5rem' }}>{log.emoji}</Avatar>
                                     </ListItemAvatar>
                                     <ListItemText 
-                                        primary={<Typography variant="body1" color="#0f172a"><strong>Someone</strong> felt <strong>{log.label}</strong></Typography>}
+                                        primary={<Typography variant="body1" color="#0f172a"><strong>Someone</strong> reacted: <strong>{log.label}</strong></Typography>}
                                         secondary={log.timestamp}
                                     />
                                 </ListItem>
@@ -335,13 +346,6 @@ export default function TeacherDashboard() {
                 </List>
             </Box>
         </Paper>
-
-        <Button 
-            variant="contained" color="error" fullWidth startIcon={<StopCircleIcon />} onClick={handleStopActivity}
-            sx={{ display: {xs: 'flex', md: 'none'}, bgcolor: '#ef4444', fontWeight: 700, borderRadius: '8px', py: 2 }}
-        >
-            End Class
-        </Button>
       </Container>
 
       {/* --- MODAL PENTRU DESCRIERE --- */}
