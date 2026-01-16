@@ -37,21 +37,17 @@ export default function ActivityReport() {
     if (!startTime) return [];
 
     // 1. Determine the full range (in minutes)
-    // If duration is provided (closed session), use it. 
-    // Otherwise, calculate elapsed time from start to now.
     const start = new Date(startTime);
     const now = new Date();
     const elapsedMinutes = durationMinutes > 0 
         ? Math.floor(durationMinutes) 
         : Math.floor((now - start) / 60000);
     
-    // Ensure we don't have negative time if clocks are skewed
     const maxMinute = Math.max(0, elapsedMinutes);
 
-    // 2. Group existing data by Minute (ignoring seconds for smoother graph)
+    // 2. Group existing data by Minute
     const grouped = {};
     rawData.forEach(d => {
-        // d.time is "MM:SS" -> we want just "MM" (integer)
         const [mm] = d.time.split(':').map(Number);
         
         if (!grouped[mm]) {
@@ -71,7 +67,6 @@ export default function ActivityReport() {
         if (grouped[i]) {
             filledTimeline.push({ time: timeLabel, ...grouped[i] });
         } else {
-            // Fill gap with zeros
             filledTimeline.push({ 
                 time: timeLabel, happy: 0, confused: 0, surprised: 0, sad: 0 
             });
@@ -92,7 +87,6 @@ export default function ActivityReport() {
         try {
             const result = await getReport(roomCode, token);
             if (result.data) {
-                // Process the raw data immediately to fill gaps
                 const processedData = processChartData(
                     result.data.chartData || [], 
                     result.data.startTime,
@@ -125,15 +119,15 @@ export default function ActivityReport() {
   const analysis = useMemo(() => {
     if (chartData.length === 0) return { mostFrequent: 'N/A', spikeTime: 'N/A', mostFrequentEmoji: '—' };
 
-    let totals = { happy: 0, confused: 0, surprised: 0, sad: 0 };
+    let totals = { understand: 0, unclear: 0, interesting: 0, im_lost: 0 };
     let maxConfused = 0;
     let spikeTime = 'N/A';
 
     chartData.forEach(point => {
-        totals.happy += (point.happy || 0);
-        totals.confused += (point.confused || 0);
-        totals.surprised += (point.surprised || 0);
-        totals.sad += (point.sad || 0);
+        totals.understand += (point.happy || 0);
+        totals.unclear += (point.confused || 0);
+        totals.interesting += (point.surprised || 0);
+        totals.im_lost += (point.sad || 0);
 
         if ((point.confused || 0) > maxConfused) {
             maxConfused = point.confused;
@@ -142,7 +136,9 @@ export default function ActivityReport() {
     });
 
     const topReaction = Object.keys(totals).reduce((a, b) => totals[a] > totals[b] ? a : b);
-    const emojis = { happy: '😊', confused: '😕', surprised: '😲', sad: '☹️' };
+    console.log("Top Reaction:", topReaction);
+    // UPDATED: Matching emojis to the rest of the app
+    const emojis = { happy: '🙂', confused: '😐', surprised: '🤩', sad: '☹️' };
 
     return {
         mostFrequent: topReaction.charAt(0).toUpperCase() + topReaction.slice(1),
@@ -151,11 +147,11 @@ export default function ActivityReport() {
     };
   }, [chartData]);
 
-  // --- 3. Client-Side CSV Export (Now uses filled data) ---
+  // --- 3. Client-Side CSV Export ---
   const handleExport = () => {
     if (!chartData.length) return;
     
-    const headers = "Time,Happy,Confused,Surprised,Sad\n";
+    const headers = "Time,Understand,Unclear,Interesing,Im_Lost\n";
     const rows = chartData.map(d => 
         `${d.time},${d.happy || 0},${d.confused || 0},${d.surprised || 0},${d.sad || 0}`
     ).join("\n");
@@ -344,16 +340,6 @@ export default function ActivityReport() {
                 <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0d141b' }}>
                     Feedback Timeline
                 </Typography>
-                <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#2196F3' }} />
-                        <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>Happy</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#FF9800' }} />
-                        <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>Confused</Typography>
-                    </Box>
-                </Box>
             </Box>
             
             <Box sx={{ height: 400, width: '100%' }}>
@@ -387,10 +373,11 @@ export default function ActivityReport() {
                             }} 
                         />
                         <Legend />
-                        <Line type="monotone" dataKey="happy" stroke="#2196F3" strokeWidth={3} dot={{r: 4, fill: '#2196F3'}} activeDot={{ r: 6 }} name="Happy 😊" />
-                        <Line type="monotone" dataKey="confused" stroke="#FF9800" strokeWidth={3} dot={{r: 4, fill: '#FF9800'}} activeDot={{ r: 6 }} name="Confused 😕" />
-                        <Line type="monotone" dataKey="surprised" stroke="#9C27B0" strokeWidth={3} dot={{r: 4, fill: '#9C27B0'}} activeDot={{ r: 6 }} name="Surprised 😲" />
-                        <Line type="monotone" dataKey="sad" stroke="#F44336" strokeWidth={3} dot={{r: 4, fill: '#F44336'}} activeDot={{ r: 6 }} name="Sad ☹️" />
+                        {/* UPDATED: Emojis in Legend Names */}
+                        <Line type="monotone" dataKey="happy" stroke="#2196F3" strokeWidth={3} dot={{r: 4, fill: '#2196F3'}} activeDot={{ r: 6 }} name="I Understand 🙂" />
+                        <Line type="monotone" dataKey="confused" stroke="#FF9800" strokeWidth={3} dot={{r: 4, fill: '#FF9800'}} activeDot={{ r: 6 }} name="Unclear 😐" />
+                        <Line type="monotone" dataKey="surprised" stroke="#9C27B0" strokeWidth={3} dot={{r: 4, fill: '#9C27B0'}} activeDot={{ r: 6 }} name="Interesting! 🤩" />
+                        <Line type="monotone" dataKey="sad" stroke="#F44336" strokeWidth={3} dot={{r: 4, fill: '#F44336'}} activeDot={{ r: 6 }} name="I’m lost ☹️" />
                     </LineChart>
                     </ResponsiveContainer>
                 ) : (
